@@ -1,3 +1,9 @@
+# Custom
+card_regression_orig
+data*/
+results
+UCI_Boston/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
