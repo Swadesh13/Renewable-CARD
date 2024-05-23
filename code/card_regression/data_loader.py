@@ -3,6 +3,7 @@ import os
 import utils
 import numpy as np
 import pandas as pd
+import copy
 from sklearn.preprocessing import StandardScaler
 
 
@@ -180,3 +181,90 @@ def compute_y_noiseless_mean(dataset, x_test_batch, true_function="linear"):
     else:
         raise NotImplementedError("We don't have such data generation scheme for toy example.")
     return y_true_mean.numpy()
+
+
+class Renewable_Solar(object):
+    def __init__(self, config):
+        # global variables for reading data files
+        _DATA_DIRECTORY_PATH = os.path.join(config.data.data_root, config.data.dir)
+        _DATA_FILE = os.readlink(os.path.join(_DATA_DIRECTORY_PATH, "solar.npy"))
+        _TARGET_FILE = os.readlink(os.path.join(_DATA_DIRECTORY_PATH, "Realised_Supply_Germany.csv"))
+        # set random seed 1 -- same setup as MC Dropout
+        utils.set_random_seed(1)
+
+        x_data = np.load(_DATA_FILE)
+        y_data = pd.read_csv(_TARGET_FILE)["Photovoltaic [MW]"].values[: (365 * 2 + 366) * 24][:, None]
+
+        if config.data.reduce_1d:
+            x_data_ = x_data.mean((1, 2))
+            if config.data.add_prev:
+                x_data_ = np.hstack([x_data_, y_data])
+        shape_ = x_data_.shape
+        x_data_ = copy.deepcopy(
+            np.lib.stride_tricks.sliding_window_view(x_data_, config.data.window_size, 0).swapaxes(1, 2)
+        )
+        if config.data.add_prev and shape_[-1] == x_data.shape[-1] + 1:
+            x_data_[:, -1, -1] = 0
+        if len(x_data_.shape) > 2:
+            x_data_ = x_data_.reshape(x_data_.shape[0], -1)
+
+        # load feature and target as X and y
+        X = x_data_.astype(np.float32)
+        y = y_data.astype(np.float32)[config.data.window_size - 1 :]
+
+        idx_split = (365 + 366) * 24
+        x_train = X[:idx_split]
+        y_train = y[:idx_split].reshape(-1, 1)
+        x_test = X[idx_split:]
+        y_test = y[idx_split:].reshape(-1, 1)
+
+        self.x_train = x_train if type(x_train) is torch.Tensor else torch.from_numpy(x_train)
+        self.y_train = y_train if type(y_train) is torch.Tensor else torch.from_numpy(y_train)
+        self.x_test = x_test if type(x_test) is torch.Tensor else torch.from_numpy(x_test)
+        self.y_test = y_test if type(y_test) is torch.Tensor else torch.from_numpy(y_test)
+
+        self.train_n_samples = x_train.shape[0]
+        self.train_dim_x = self.x_train.shape[1]  # dimension of training data input
+        self.train_dim_y = self.y_train.shape[1]  # dimension of training regression output
+
+        self.test_n_samples = x_test.shape[0]
+        self.test_dim_x = self.x_test.shape[1]  # dimension of testing data input
+        self.test_dim_y = self.y_test.shape[1]  # dimension of testing regression output
+
+        self.normalize_x = config.data.normalize_x
+        self.normalize_y = config.data.normalize_y
+        self.scaler_x, self.scaler_y = None, None
+
+        if self.normalize_x:
+            self.normalize_train_test_x()
+        if self.normalize_y:
+            self.normalize_train_test_y()
+
+    def normalize_train_test_x(self):
+        """
+        When self.dim_cat > 0, we have one-hot encoded number of categorical variables,
+            on which we don't conduct standardization. They are arranged as the last
+            columns of the feature set.
+        """
+        self.scaler_x = StandardScaler(with_mean=True, with_std=True)
+        self.x_train = torch.from_numpy(self.scaler_x.fit_transform(self.x_train).astype(np.float32))
+        self.x_test = torch.from_numpy(self.scaler_x.transform(self.x_test).astype(np.float32))
+
+    def normalize_train_test_y(self):
+        self.scaler_y = StandardScaler(with_mean=True, with_std=True)
+        self.y_train = torch.from_numpy(self.scaler_y.fit_transform(self.y_train).astype(np.float32))
+        self.y_test = torch.from_numpy(self.scaler_y.transform(self.y_test).astype(np.float32))
+
+    def return_dataset(self, split="train"):
+        if split == "train":
+            train_dataset = torch.cat((self.x_train, self.y_train), dim=1)
+            return train_dataset
+        else:
+            test_dataset = torch.cat((self.x_test, self.y_test), dim=1)
+            return test_dataset
+
+    def summary_dataset(self, split="train"):
+        if split == "train":
+            return {"n_samples": self.train_n_samples, "dim_x": self.train_dim_x, "dim_y": self.train_dim_y}
+        else:
+            return {"n_samples": self.test_n_samples, "dim_x": self.test_dim_x, "dim_y": self.test_dim_y}

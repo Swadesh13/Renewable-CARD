@@ -5,7 +5,7 @@ import argparse
 import torch
 import torch.optim as optim
 from torch import nn
-from data_loader import UCI_Dataset
+from data_loader import UCI_Dataset, Renewable_Solar
 
 
 def set_random_seed(seed):
@@ -157,8 +157,15 @@ def get_optimizer_and_scheduler(config, parameters, epochs, init_epoch):
 
 
 def get_dataset(args, config, test_set=False, validation=False):
-    data_object = UCI_Dataset(config, args.split, validation)
-    data_type = "test" if test_set else "train"
-    logging.info(data_object.summary_dataset(split=data_type))
-    data = data_object.return_dataset(split=data_type)
+    if config.data.dataset == "uci":
+        data_object = UCI_Dataset(config, args.split, validation)
+        data_type = "test" if test_set else "train"
+        logging.info(data_object.summary_dataset(split=data_type))
+        data = data_object.return_dataset(split=data_type)
+    elif config.data.dataset == "renewable_solar":
+        data_object = Renewable_Solar(config)
+        data_type = "test" if test_set else "train"
+        logging.info(data_object.summary_dataset(split=data_type))
+        data = data_object.return_dataset(split=data_type)
+
     return data_object, data

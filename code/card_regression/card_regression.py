@@ -468,7 +468,7 @@ class Diffusion(object):
                                 torch.save(aux_states, os.path.join(self.args.log_path, "aux_ckpt.pth"))
 
                     if step % self.config.training.validation_freq == 0 or step == 1:
-                        if config.data.dataset == "uci":  # plot UCI prediction and ground truth
+                        if config.data.dataset in ("uci", "renewable_solar"):  # plot UCI prediction and ground truth
                             with torch.no_grad():
                                 y_p_seq = p_sample_loop(
                                     model,
@@ -878,7 +878,7 @@ class Diffusion(object):
 
         # sanity check
         logging.info("Sanity check of the checkpoint")
-        if config.data.dataset == "uci":
+        if config.data.dataset in ("uci", "renewable_solar"):
             dataset_check = dataset_object.return_dataset(split="train")
         else:
             dataset_check = dataset_object.train_dataset
@@ -949,7 +949,7 @@ class Diffusion(object):
                 # compute y_0_hat as the initial prediction to guide the reverse diffusion process
                 y_0_hat_batch = self.compute_guiding_prediction(x_batch, method=config.diffusion.conditioning_signal)
                 true_y_by_batch_list.append(y_batch.cpu().numpy())
-                if config.testing.make_plot and config.data.dataset != "uci":
+                if config.testing.make_plot and config.data.dataset not in ("uci", "renewable_solar"):
                     true_x_by_batch_list.append(x_batch.cpu().numpy())
                 # obtain y samples through reverse diffusion -- some pytorch version might not have torch.tile
                 y_0_tile = (
@@ -1045,7 +1045,7 @@ class Diffusion(object):
 
         ################## compute metrics on test set ##################
         all_true_y = np.concatenate(true_y_by_batch_list, axis=0)
-        if config.testing.make_plot and config.data.dataset != "uci":
+        if config.testing.make_plot and config.data.dataset not in ("uci", "renewable_solar"):
             all_true_x = np.concatenate(true_x_by_batch_list, axis=0)
         if config.testing.plot_gen:
             all_true_x_tile = np.concatenate(true_x_tile_by_batch_list, axis=0)
@@ -1155,7 +1155,7 @@ class Diffusion(object):
 
         # make plots for true vs. generated distribution comparison
         if config.testing.make_plot:
-            assert config.data.dataset != "uci"
+            assert config.data.dataset not in ("uci", "renewable_solar")
             all_gen_y = gen_y_by_batch_list[config.testing.vis_t]
             # compute QICE
             y_true_ratio_by_bin, qice_coverage_ratio, y_true = compute_true_coverage_by_gen_QI(
@@ -1388,7 +1388,7 @@ class Diffusion(object):
         # clear the memory
         plt.close("all")
         del true_y_by_batch_list
-        if config.testing.make_plot and config.data.dataset != "uci":
+        if config.testing.make_plot and config.data.dataset not in ("uci", "renewable_solar"):
             del all_true_x
         if config.testing.plot_gen:
             del all_true_x_tile
