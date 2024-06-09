@@ -45,7 +45,9 @@ class Diffusion(object):
         self.alphas_bar_sqrt = torch.sqrt(alphas_cumprod)
         self.one_minus_alphas_bar_sqrt = torch.sqrt(1 - alphas_cumprod)
         if config.diffusion.beta_schedule == "cosine":
-            self.one_minus_alphas_bar_sqrt *= 0.9999  # avoid division by 0 for 1/sqrt(alpha_bar_t) during inference
+            self.one_minus_alphas_bar_sqrt *= (
+                0.9999  # avoid division by 0 for 1/sqrt(alpha_bar_t) during inference
+            )
         # alphas_cumprod_prev = torch.cat([torch.ones(1).to(device), alphas_cumprod[:-1]], dim=0)
         # self.alphas_cumprod_prev = alphas_cumprod_prev
         # self.posterior_mean_coeff_1 = betas * torch.sqrt(alphas_cumprod_prev) / (1.0 - alphas_cumprod)
@@ -133,7 +135,9 @@ class Diffusion(object):
             y_batch = y_batch.cpu().detach().numpy()
             if dataset_object.normalize_y:
                 y_batch = dataset_object.scaler_y.inverse_transform(y_batch).astype(np.float32)
-                y_batch_pred_mean = dataset_object.scaler_y.inverse_transform(y_batch_pred_mean).astype(np.float32)
+                y_batch_pred_mean = dataset_object.scaler_y.inverse_transform(y_batch_pred_mean).astype(
+                    np.float32
+                )
             y_se = (y_batch_pred_mean - y_batch) ** 2
             if len(y_se_list) == 0:
                 y_se_list = y_se
@@ -179,7 +183,9 @@ class Diffusion(object):
     def obtain_true_and_pred_y_t(self, cur_t, y_seq, y_T_mean, y_0):
         y_t_p_sample = y_seq[self.num_timesteps - cur_t].detach().cpu()
         y_t_true = (
-            q_sample(y_0, y_T_mean, self.alphas_bar_sqrt, self.one_minus_alphas_bar_sqrt, torch.tensor([cur_t - 1]))
+            q_sample(
+                y_0, y_T_mean, self.alphas_bar_sqrt, self.one_minus_alphas_bar_sqrt, torch.tensor([cur_t - 1])
+            )
             .detach()
             .cpu()
         )
@@ -299,7 +305,9 @@ class Diffusion(object):
                 )
                 train_val_start_time = time.time()
                 for epoch in range(config.diffusion.nonlinear_guidance.n_pretrain_max_epochs):
-                    self.nonlinear_guidance_model_train_loop_per_epoch(train_subset_loader, aux_optimizer, epoch)
+                    self.nonlinear_guidance_model_train_loop_per_epoch(
+                        train_subset_loader, aux_optimizer, epoch
+                    )
                     y_val_rmse_aux_model = self.evaluate_guidance_model(val_set_object, val_loader)
                     val_cost = y_val_rmse_aux_model
                     early_stopper(val_cost=val_cost, epoch=epoch)
@@ -313,9 +321,10 @@ class Diffusion(object):
                         break
                 train_val_end_time = time.time()
                 logging.info(
-                    ("Tuning for number of epochs to train non-linear guidance model " + "took {:.4f} minutes.").format(
-                        (train_val_end_time - train_val_start_time) / 60
-                    )
+                    (
+                        "Tuning for number of epochs to train non-linear guidance model "
+                        + "took {:.4f} minutes."
+                    ).format((train_val_end_time - train_val_start_time) / 60)
                 )
                 logging.info("\nAfter tuning for best total epochs, on training sebset and validation set:")
                 self.evaluate_guidance_model_on_both_train_and_test_set(
@@ -368,7 +377,9 @@ class Diffusion(object):
                     ema_helper.load_state_dict(states[4])
                 # load auxiliary model
                 if config.diffusion.conditioning_signal == "NN":
-                    aux_states = torch.load(os.path.join(self.args.log_path, "aux_ckpt.pth"), map_location=self.device)
+                    aux_states = torch.load(
+                        os.path.join(self.args.log_path, "aux_ckpt.pth"), map_location=self.device
+                    )
                     self.cond_pred_model.load_state_dict(aux_states[0])
                     aux_optimizer.load_state_dict(aux_states[1])
 
@@ -404,7 +415,9 @@ class Diffusion(object):
                     # output = model(x_batch, y_t_batch, y_T_mean, t)
                     output = model(x_batch, y_t_batch, y_0_hat_batch, t)
 
-                    loss = (e - output).square().mean()  # use the same noise sample e during training to compute loss
+                    loss = (
+                        (e - output).square().mean()
+                    )  # use the same noise sample e during training to compute loss
 
                     tb_logger.add_scalar("loss", loss, global_step=step)
 
@@ -428,11 +441,16 @@ class Diffusion(object):
                         ema_helper.update(model)
 
                     # optimize non-linear guidance model
-                    if config.diffusion.conditioning_signal == "NN" and config.diffusion.nonlinear_guidance.joint_train:
+                    if (
+                        config.diffusion.conditioning_signal == "NN"
+                        and config.diffusion.nonlinear_guidance.joint_train
+                    ):
                         self.cond_pred_model.train()
                         aux_loss = self.nonlinear_guidance_model_train_step(x_batch, y_batch, aux_optimizer)
                         if step % self.config.training.logging_freq == 0 or step == 1:
-                            logging.info(f"meanwhile, non-linear guidance model joint-training loss: {aux_loss}")
+                            logging.info(
+                                f"meanwhile, non-linear guidance model joint-training loss: {aux_loss}"
+                            )
 
                     # save diffusion model
                     if step % self.config.training.snapshot_freq == 0 or step == 1:
@@ -468,7 +486,10 @@ class Diffusion(object):
                                 torch.save(aux_states, os.path.join(self.args.log_path, "aux_ckpt.pth"))
 
                     if step % self.config.training.validation_freq == 0 or step == 1:
-                        if config.data.dataset in ("uci", "renewable_solar"):  # plot UCI prediction and ground truth
+                        if config.data.dataset in (
+                            "uci",
+                            "renewable_solar",
+                        ):  # plot UCI prediction and ground truth
                             with torch.no_grad():
                                 y_p_seq = p_sample_loop(
                                     model,
@@ -480,17 +501,26 @@ class Diffusion(object):
                                     self.one_minus_alphas_bar_sqrt,
                                 )
                                 fig, axs = plt.subplots(
-                                    1, (self.num_figs + 1), figsize=((self.num_figs + 1) * 8.5, 8.5), clear=True
+                                    1,
+                                    (self.num_figs + 1),
+                                    figsize=((self.num_figs + 1) * 8.5, 8.5),
+                                    clear=True,
                                 )
                                 # plot at timestep 1
                                 cur_t = 1
                                 cur_y, y_i = self.obtain_true_and_pred_y_t(cur_t, y_p_seq, y_T_mean, y_batch)
-                                self.make_subplot_at_timestep_t(cur_t, cur_y, y_i, y_batch, axs, 0, testing=False)
+                                self.make_subplot_at_timestep_t(
+                                    cur_t, cur_y, y_i, y_batch, axs, 0, testing=False
+                                )
                                 # plot at vis_step interval
                                 for j in range(1, self.num_figs):
                                     cur_t = j * self.vis_step
-                                    cur_y, y_i = self.obtain_true_and_pred_y_t(cur_t, y_p_seq, y_T_mean, y_batch)
-                                    self.make_subplot_at_timestep_t(cur_t, cur_y, y_i, y_batch, axs, j, testing=False)
+                                    cur_y, y_i = self.obtain_true_and_pred_y_t(
+                                        cur_t, y_p_seq, y_T_mean, y_batch
+                                    )
+                                    self.make_subplot_at_timestep_t(
+                                        cur_t, cur_y, y_i, y_batch, axs, j, testing=False
+                                    )
                                 # plot at timestep T
                                 cur_t = self.num_timesteps
                                 cur_y, y_i = self.obtain_true_and_pred_y_t(cur_t, y_p_seq, y_T_mean, y_batch)
@@ -502,133 +532,9 @@ class Diffusion(object):
                                 ax_list[0].get_shared_y_axes().join(ax_list[0], *ax_list)
                                 tb_logger.add_figure("samples", fig, step)
                                 fig.savefig(
-                                    os.path.join(args.im_path, "samples_T{}_{}.png".format(self.num_timesteps, step))
-                                )
-                            plt.close("all")
-                        else:  # visualization for toy data (where x is 1-D) during training
-                            with torch.no_grad():
-                                # plot q samples
-                                if epoch == start_epoch:
-                                    fig, axs = plt.subplots(
-                                        1, self.num_figs + 1, figsize=((self.num_figs + 1) * 8.5, 8.5), clear=True
+                                    os.path.join(
+                                        args.im_path, "samples_T{}_{}.png".format(self.num_timesteps, step)
                                     )
-                                    # q samples at timestep 1
-                                    y_1 = (
-                                        q_sample(
-                                            y_batch,
-                                            y_T_mean,
-                                            self.alphas_bar_sqrt,
-                                            self.one_minus_alphas_bar_sqrt,
-                                            torch.tensor([0]).to(self.device),
-                                        )
-                                        .detach()
-                                        .cpu()
-                                    )
-                                    axs[0].scatter(x_batch.detach().cpu(), y_1, s=10, c="tab:red")
-                                    axs[0].set_title("$q(\mathbf{y}_{" + str(1) + "})$", fontsize=23)
-                                    y_q_seq = []
-                                    for j in range(1, self.num_figs):
-                                        cur_t = j * self.vis_step
-                                        cur_y = (
-                                            q_sample(
-                                                y_batch,
-                                                y_T_mean,
-                                                self.alphas_bar_sqrt,
-                                                self.one_minus_alphas_bar_sqrt,
-                                                torch.tensor([cur_t - 1]).to(self.device),
-                                            )
-                                            .detach()
-                                            .cpu()
-                                        )
-                                        y_q_seq.append(cur_y)
-                                        axs[j].scatter(x_batch.detach().cpu(), cur_y, s=10, c="tab:red")
-
-                                        axs[j].set_title("$q(\mathbf{y}_{" + str(cur_t) + "})$", fontsize=23)
-                                    # q samples at timestep T
-                                    y_T = (
-                                        q_sample(
-                                            y_batch,
-                                            y_T_mean,
-                                            self.alphas_bar_sqrt,
-                                            self.one_minus_alphas_bar_sqrt,
-                                            torch.tensor([self.num_timesteps - 1]).to(self.device),
-                                        )
-                                        .detach()
-                                        .cpu()
-                                    )
-                                    axs[self.num_figs].scatter(x_batch.detach().cpu(), y_T, s=10, c="tab:red")
-                                    axs[self.num_figs].set_title(
-                                        "$q(\mathbf{y}_{" + str(self.num_timesteps) + "})$", fontsize=23
-                                    )
-                                    ax_list = [axs[j] for j in range(self.num_figs + 1)]
-                                    ax_list[0].get_shared_x_axes().join(ax_list[0], *ax_list)
-                                    ax_list[0].get_shared_y_axes().join(ax_list[0], *ax_list)
-                                    if config.testing.squared_plot:
-                                        for j in range(self.num_figs + 1):
-                                            axs[j].set(aspect="equal", adjustable="box")
-                                    tb_logger.add_figure("data", fig, step)
-                                    fig.savefig(
-                                        os.path.join(
-                                            args.im_path, "q_samples_T{}_{}.png".format(self.num_timesteps, step)
-                                        )
-                                    )
-
-                                # plot p samples
-                                fig, axs = plt.subplots(
-                                    1, self.num_figs + 1, figsize=((self.num_figs + 1) * 8.5, 8.5), clear=True
-                                )
-                                y_p_seq = p_sample_loop(
-                                    model,
-                                    x_batch,
-                                    y_0_hat_batch,
-                                    y_T_mean,
-                                    self.num_timesteps,
-                                    self.alphas,
-                                    self.one_minus_alphas_bar_sqrt,
-                                )
-                                # p samples at timestep 1
-                                cur_y = y_p_seq[self.num_timesteps - 1].detach().cpu()
-                                axs[0].scatter(x_batch.detach().cpu(), cur_y, s=10, c="tab:blue")
-                                axs[0].set_title("$p({z}_1)$", fontsize=23)
-                                # kl = kld(y_1, cur_y)
-                                # kl_y0 = kld(y_batch.detach().cpu(), cur_y)
-                                axs[0].set_title("$p(\mathbf{y}_{1})$", fontsize=23)
-                                # axs[0].set_xlabel(
-                                #     'KL($q(y_t)||p(y_t)$)={:.2f}\nKL($q(y_0)||p(y_t)$)={:.2f}'.format(
-                                #         kl, kl_y0), fontsize=20)
-                                for j in range(1, self.num_figs):
-                                    cur_t = j * self.vis_step
-                                    cur_y = y_p_seq[self.num_timesteps - cur_t].detach().cpu()
-                                    # kl = kld(y_q_seq[j-1].detach().cpu(), cur_y)
-                                    # kl_y0 = kld(y_batch.detach().cpu(), cur_y)
-                                    axs[j].scatter(x_batch.detach().cpu(), cur_y, s=10, c="tab:blue")
-                                    axs[j].set_title("$p(\mathbf{y}_{" + str(cur_t) + "})$", fontsize=23)
-                                    # axs[j].set_xlabel(
-                                    #     'KL($q(y_t)||p(y_t)$)={:.2f}\nKL($q(y_0)||p(y_t)$)={:.2f}'.format(
-                                    #         kl, kl_y0), fontsize=20)
-                                # p samples at timestep T
-                                cur_y = y_p_seq[0].detach().cpu()
-                                axs[self.num_figs].scatter(x_batch.detach().cpu(), cur_y, s=10, c="tab:blue")
-                                axs[self.num_figs].set_title("$p({z}_\mathbf{prior})$", fontsize=23)
-                                # kl = kld(y_T, cur_y)
-                                # kl_y0 = kld(y_batch.detach().cpu(), cur_y)
-                                # axs[self.num_figs].set_xlabel(
-                                #     'KL($q(y_t)||p(z)$)={:.2f}\nKL($q(y_0)||p(z)$)={:.2f}'.format(
-                                #         kl, kl_y0), fontsize=20)
-                                if step > 1:
-                                    ax_list = [axs[j] for j in range(self.num_figs + 1)]
-                                    ax_list[0].get_shared_x_axes().join(ax_list[0], *ax_list)
-                                    ax_list[0].get_shared_y_axes().join(ax_list[0], *ax_list)
-                                    # define custom 'xlim' and 'ylim' values
-                                    # custom_xlim = axs[0].get_xlim()
-                                    # custom_ylim = axs[0].get_ylim()
-                                    # plt.setp(axs, xlim=custom_xlim, ylim=custom_ylim)
-                                    if config.testing.squared_plot:
-                                        for j in range(self.num_figs + 1):
-                                            axs[j].set(aspect="equal", adjustable="box")
-                                tb_logger.add_figure("samples", fig, step)
-                                fig.savefig(
-                                    os.path.join(args.im_path, "p_samples_T{}_{}.png".format(self.num_timesteps, step))
                                 )
                             plt.close("all")
 
@@ -690,7 +596,9 @@ class Diffusion(object):
                 y_se = (y_pred_mean - y_true) ** 2
                 return y_se
 
-        def compute_true_coverage_by_gen_QI(config, dataset_object, all_true_y, all_generated_y, verbose=True):
+        def compute_true_coverage_by_gen_QI(
+            config, dataset_object, all_true_y, all_generated_y, verbose=True
+        ):
             n_bins = config.testing.n_bins
             quantile_list = np.arange(n_bins + 1) * (100 / n_bins)
             # compute generated y quantiles
@@ -716,7 +624,9 @@ class Diffusion(object):
             y_true_quantile_bin_count_ = y_true_quantile_bin_count[1:-1]
             # compute true y coverage ratio for each gen y quantile interval
             y_true_ratio_by_bin = y_true_quantile_bin_count_ / dataset_object.test_n_samples
-            assert np.abs(np.sum(y_true_ratio_by_bin) - 1) < 1e-10, "Sum of quantile coverage ratios shall be 1!"
+            assert (
+                np.abs(np.sum(y_true_ratio_by_bin) - 1) < 1e-10
+            ), "Sum of quantile coverage ratios shall be 1!"
             qice_coverage_ratio = np.absolute(np.ones(n_bins) / n_bins - y_true_ratio_by_bin).mean()
             return y_true_ratio_by_bin, qice_coverage_ratio, y_true
 
@@ -734,7 +644,7 @@ class Diffusion(object):
             else:
                 return coverage, low, high
 
-        def store_gen_y_at_step_t(config, current_batch_size, idx, y_tile_seq):
+        def store_gen_y_at_step_t(config, current_batch_size, idx, y_tile_seq, gen_y_by_batch_list):
             """
             Store generated y from a mini-batch to the array of corresponding time step.
             """
@@ -750,10 +660,12 @@ class Diffusion(object):
             if len(gen_y_by_batch_list[current_t]) == 0:
                 gen_y_by_batch_list[current_t] = gen_y
             else:
-                gen_y_by_batch_list[current_t] = np.concatenate([gen_y_by_batch_list[current_t], gen_y], axis=0)
+                gen_y_by_batch_list[current_t] = np.concatenate(
+                    [gen_y_by_batch_list[current_t], gen_y], axis=0
+                )
             return gen_y
 
-        def store_y_se_at_step_t(config, idx, dataset_object, y_batch, gen_y):
+        def store_y_se_at_step_t(config, idx, dataset_object, y_batch, gen_y, y_se_by_batch_list):
             current_t = self.num_timesteps - idx
             # compute sqaured error in each batch
             y_se = compute_prediction_SE(
@@ -768,7 +680,9 @@ class Diffusion(object):
             if test_var:
                 # compute test set sample variance
                 if dataset_object.normalize_y:
-                    y_test_unnorm = dataset_object.scaler_y.inverse_transform(dataset_object.y_test).astype(np.float32)
+                    y_test_unnorm = dataset_object.scaler_y.inverse_transform(dataset_object.y_test).astype(
+                        np.float32
+                    )
                 else:
                     y_test_unnorm = dataset_object.y_test
                 y_test_unnorm = (
@@ -816,7 +730,9 @@ class Diffusion(object):
         def store_nll_at_step_t(config, idx, dataset_object, y_batch, gen_y):
             current_t = self.num_timesteps - idx
             # compute negative log-likelihood in each batch
-            nll = compute_batch_NLL(config=config, dataset_object=dataset_object, y_batch=y_batch, generated_y=gen_y)
+            nll = compute_batch_NLL(
+                config=config, dataset_object=dataset_object, y_batch=y_batch, generated_y=gen_y
+            )
             if len(nll_by_batch_list[current_t]) == 0:
                 nll_by_batch_list[current_t] = nll
             else:
@@ -827,7 +743,6 @@ class Diffusion(object):
 
         args = self.args
         config = self.config
-        split = args.split
         log_path = os.path.join(self.args.log_path)
         dataset_object, dataset = get_dataset(args, config, test_set=True)
         test_loader = data.DataLoader(
@@ -902,7 +817,9 @@ class Diffusion(object):
                 self.alphas,
                 self.one_minus_alphas_bar_sqrt,
             )
-            fig, axs = plt.subplots(1, (self.num_figs + 1), figsize=((self.num_figs + 1) * 8.5, 8.5), clear=True)
+            fig, axs = plt.subplots(
+                1, (self.num_figs + 1), figsize=((self.num_figs + 1) * 8.5, 8.5), clear=True
+            )
             # plot at timestep 1
             cur_t = 1
             cur_y, y_i = self.obtain_true_and_pred_y_t(cur_t, y_p_seq, y_T_mean_check, y_check)
@@ -915,7 +832,9 @@ class Diffusion(object):
             # plot at timestep T
             cur_t = self.num_timesteps
             cur_y, y_i = self.obtain_true_and_pred_y_t(cur_t, y_p_seq, y_T_mean_check, y_check)
-            self.make_subplot_at_timestep_t(cur_t, cur_y, y_i, y_check, axs, self.num_figs, prior=True, testing=False)
+            self.make_subplot_at_timestep_t(
+                cur_t, cur_y, y_i, y_check, axs, self.num_figs, prior=True, testing=False
+            )
             fig.savefig(os.path.join(args.im_path, "sanity_check.pdf"))
             plt.close("all")
 
@@ -947,13 +866,17 @@ class Diffusion(object):
                 x_batch = xy_0[:, : -config.model.y_dim]
                 y_batch = xy_0[:, -config.model.y_dim :]
                 # compute y_0_hat as the initial prediction to guide the reverse diffusion process
-                y_0_hat_batch = self.compute_guiding_prediction(x_batch, method=config.diffusion.conditioning_signal)
+                y_0_hat_batch = self.compute_guiding_prediction(
+                    x_batch, method=config.diffusion.conditioning_signal
+                )
                 true_y_by_batch_list.append(y_batch.cpu().numpy())
                 if config.testing.make_plot and config.data.dataset not in ("uci", "renewable_solar"):
                     true_x_by_batch_list.append(x_batch.cpu().numpy())
                 # obtain y samples through reverse diffusion -- some pytorch version might not have torch.tile
                 y_0_tile = (
-                    (y_batch.repeat(config.testing.n_z_samples, 1, 1).transpose(0, 1)).to(self.device).flatten(0, 1)
+                    (y_batch.repeat(config.testing.n_z_samples, 1, 1).transpose(0, 1))
+                    .to(self.device)
+                    .flatten(0, 1)
                 )
                 y_0_hat_tile = (
                     (y_0_hat_batch.repeat(config.testing.n_z_samples, 1, 1).transpose(0, 1))
@@ -964,12 +887,16 @@ class Diffusion(object):
                 if config.diffusion.noise_prior:  # apply 0 instead of f_phi(x) as prior mean
                     y_T_mean_tile = torch.zeros(y_0_hat_tile.shape).to(self.device)
                 x_tile = (
-                    (x_batch.repeat(config.testing.n_z_samples, 1, 1).transpose(0, 1)).to(self.device).flatten(0, 1)
+                    (x_batch.repeat(config.testing.n_z_samples, 1, 1).transpose(0, 1))
+                    .to(self.device)
+                    .flatten(0, 1)
                 )
                 n_samples_gen_y_for_plot = 2
                 if config.testing.plot_gen:
                     x_repeated = (
-                        (x_batch.repeat(n_samples_gen_y_for_plot, 1, 1).transpose(0, 1)).to(self.device).flatten(0, 1)
+                        (x_batch.repeat(n_samples_gen_y_for_plot, 1, 1).transpose(0, 1))
+                        .to(self.device)
+                        .flatten(0, 1)
                     )
                     true_x_tile_by_batch_list.append(x_repeated.cpu().numpy())
                 # generate samples from all time steps for the current mini-batch
@@ -993,21 +920,43 @@ class Diffusion(object):
                 if config.testing.compute_metric_all_steps:
                     for idx in range(self.num_timesteps + 1):
                         gen_y = store_gen_y_at_step_t(
-                            config=config, current_batch_size=current_batch_size, idx=idx, y_tile_seq=y_tile_seq
+                            config=config,
+                            current_batch_size=current_batch_size,
+                            idx=idx,
+                            y_tile_seq=y_tile_seq,
+                            gen_y_by_batch_list=gen_y_by_batch_list,
                         )
                         store_y_se_at_step_t(
-                            config=config, idx=idx, dataset_object=dataset_object, y_batch=y_batch, gen_y=gen_y
+                            config=config,
+                            idx=idx,
+                            dataset_object=dataset_object,
+                            y_batch=y_batch,
+                            gen_y=gen_y,
+                            y_se_by_batch_list=y_se_by_batch_list,
                         )
                         store_nll_at_step_t(
-                            config=config, idx=idx, dataset_object=dataset_object, y_batch=y_batch, gen_y=gen_y
+                            config=config,
+                            idx=idx,
+                            dataset_object=dataset_object,
+                            y_batch=y_batch,
+                            gen_y=gen_y,
                         )
                 else:
                     # store generated y at certain step for RMSE and for QICE computation
                     gen_y = store_gen_y_at_step_t(
-                        config=config, current_batch_size=current_batch_size, idx=mean_idx, y_tile_seq=y_tile_seq
+                        config=config,
+                        current_batch_size=current_batch_size,
+                        idx=mean_idx,
+                        y_tile_seq=y_tile_seq,
+                        gen_y_by_batch_list=gen_y_by_batch_list,
                     )
                     store_y_se_at_step_t(
-                        config=config, idx=mean_idx, dataset_object=dataset_object, y_batch=y_batch, gen_y=gen_y
+                        config=config,
+                        idx=mean_idx,
+                        dataset_object=dataset_object,
+                        y_batch=y_batch,
+                        gen_y=gen_y,
+                        y_se_by_batch_list=y_se_by_batch_list,
                     )
                     if coverage_idx != mean_idx:
                         _ = store_gen_y_at_step_t(
@@ -1015,18 +964,28 @@ class Diffusion(object):
                             current_batch_size=current_batch_size,
                             idx=coverage_idx,
                             y_tile_seq=y_tile_seq,
+                            gen_y_by_batch_list=gen_y_by_batch_list,
                         )
                     if nll_idx != mean_idx and nll_idx != coverage_idx:
                         _ = store_gen_y_at_step_t(
-                            config=config, current_batch_size=current_batch_size, idx=nll_idx, y_tile_seq=y_tile_seq
+                            config=config,
+                            current_batch_size=current_batch_size,
+                            idx=nll_idx,
+                            y_tile_seq=y_tile_seq,
                         )
                     store_nll_at_step_t(
-                        config=config, idx=nll_idx, dataset_object=dataset_object, y_batch=y_batch, gen_y=gen_y
+                        config=config,
+                        idx=nll_idx,
+                        dataset_object=dataset_object,
+                        y_batch=y_batch,
+                        gen_y=gen_y,
                     )
 
                 # make plot at particular mini-batches
                 if step % config.testing.plot_freq == 0:  # plot for every plot_freq-th mini-batch
-                    fig, axs = plt.subplots(1, self.num_figs + 1, figsize=((self.num_figs + 1) * 8.5, 8.5), clear=True)
+                    fig, axs = plt.subplots(
+                        1, self.num_figs + 1, figsize=((self.num_figs + 1) * 8.5, 8.5), clear=True
+                    )
                     # plot at timestep 1
                     cur_t = 1
                     cur_y, y_i = self.obtain_true_and_pred_y_t(cur_t, y_tile_seq, y_T_mean_tile, y_0_tile)
@@ -1039,8 +998,12 @@ class Diffusion(object):
                     # plot at timestep T
                     cur_t = self.num_timesteps
                     cur_y, y_i = self.obtain_true_and_pred_y_t(cur_t, y_tile_seq, y_T_mean_tile, y_0_tile)
-                    self.make_subplot_at_timestep_t(cur_t, cur_y, y_i, y_0_tile, axs, self.num_figs, prior=True)
-                    fig.savefig(os.path.join(args.im_path, "samples_T{}_{}.png".format(self.num_timesteps, step)))
+                    self.make_subplot_at_timestep_t(
+                        cur_t, cur_y, y_i, y_0_tile, axs, self.num_figs, prior=True
+                    )
+                    fig.savefig(
+                        os.path.join(args.im_path, "samples_T{}_{}.png".format(self.num_timesteps, step))
+                    )
                     plt.close("all")
 
         ################## compute metrics on test set ##################
@@ -1140,7 +1103,8 @@ class Diffusion(object):
             y_picp_all_steps_list.append(coverage)
             logging.info(
                 (
-                    "There are {:.4f}% of true test y in the range of " + "the computed {:.0f}% credible interval."
+                    "There are {:.4f}% of true test y in the range of "
+                    + "the computed {:.0f}% credible interval."
                 ).format(100 * coverage, high - low)
             )
             # compute NLL
@@ -1235,9 +1199,9 @@ class Diffusion(object):
                 if not config.data.inverse_xy:
                     y_rmse = np.sqrt(np.mean((y_pred_mean - all_true_y) ** 2))
                     logging.info(
-                        ("\nRMSE between true y and the mean of generated y given each x is " + "{:.8f}.").format(
-                            y_rmse
-                        )
+                        (
+                            "\nRMSE between true y and the mean of generated y given each x is " + "{:.8f}."
+                        ).format(y_rmse)
                     )
                     # obtain noiseless mean with ground truth data generation function
                     y_noiseless_mean = compute_y_noiseless_mean(
@@ -1245,7 +1209,8 @@ class Diffusion(object):
                     )
                     logging.info(
                         (
-                            "\nRMSE between true expected y and the mean of generated y given each x is " + "{:.8f}."
+                            "\nRMSE between true expected y and the mean of generated y given each x is "
+                            + "{:.8f}."
                         ).format(np.sqrt(np.mean((y_pred_mean - y_noiseless_mean) ** 2)))
                     )
             n_true_x_for_plot_scale = 2
@@ -1330,10 +1295,18 @@ class Diffusion(object):
                         CI_y_pred_lower = CI_y_pred[0]
                         CI_y_pred_higher = CI_y_pred[1]
                     ax1.fill_between(
-                        x=all_true_x.squeeze(), y1=CI_y_pred_lower, y2=CI_y_pred_higher, facecolor="grey", alpha=0.6
+                        x=all_true_x.squeeze(),
+                        y1=CI_y_pred_lower,
+                        y2=CI_y_pred_higher,
+                        facecolor="grey",
+                        alpha=0.6,
                     )
                     ax_1.fill_between(
-                        x=all_true_x.squeeze(), y1=CI_y_pred_lower, y2=CI_y_pred_higher, facecolor="grey", alpha=0.6
+                        x=all_true_x.squeeze(),
+                        y1=CI_y_pred_lower,
+                        y2=CI_y_pred_higher,
+                        facecolor="grey",
+                        alpha=0.6,
                     )
             ax_1.legend(loc="best")
             ax1.legend(loc="best")
@@ -1341,7 +1314,9 @@ class Diffusion(object):
             ax_1.legend(loc="best")
             ax_1.set_xlabel("$x$", fontsize=10)
             ax_1.set_ylabel("$y$", fontsize=10)
-            fig_1.savefig(os.path.join(args.im_path, "gen_vs_true_scatter.png"), dpi=1200, bbox_inches="tight")
+            fig_1.savefig(
+                os.path.join(args.im_path, "gen_vs_true_scatter.png"), dpi=1200, bbox_inches="tight"
+            )
 
             ################## make second plot ##################
             n_bins = config.testing.n_bins
@@ -1380,7 +1355,9 @@ class Diffusion(object):
             ax_3.set_yticks(all_bins[::2])
             ax_3.set_xlim([-1, all_bins[-1] + 1])
             ax_3.set_ylim([-1, all_bins[-1] + 1])
-            fig_3.savefig(os.path.join(args.im_path, "quantile_interval_coverage_true_vs_optimal.png"), dpi=1200)
+            fig_3.savefig(
+                os.path.join(args.im_path, "quantile_interval_coverage_true_vs_optimal.png"), dpi=1200
+            )
 
             fig.tight_layout()
             fig.savefig(os.path.join(args.im_path, "gen_vs_true_distribution_vis.png"), dpi=1200)

@@ -5,7 +5,7 @@ import argparse
 import torch
 import torch.optim as optim
 from torch import nn
-from data_loader import UCI_Dataset, Renewable_Solar
+from data_loader import UCI_Dataset, Renewable
 
 
 def set_random_seed(seed):
@@ -67,7 +67,9 @@ def multiple_experiments(
 
         model_init_dict.update(seed=seed, dim_x=data.dim_x, dim_y=data.dim_y)
         model = model_class(**model_init_dict).to(device)
-        print(f"\n*Create the {idx}-th model from class {type(model).__name__}, with random seed {model.seed}")
+        print(
+            f"\n*Create the {idx}-th model from class {type(model).__name__}, with random seed {model.seed}"
+        )
 
         model_train_dict.update(dataset=data)
         model.train_loop(**model_train_dict)
@@ -162,10 +164,12 @@ def get_dataset(args, config, test_set=False, validation=False):
         data_type = "test" if test_set else "train"
         logging.info(data_object.summary_dataset(split=data_type))
         data = data_object.return_dataset(split=data_type)
-    elif config.data.dataset == "renewable_solar":
-        data_object = Renewable_Solar(config)
+    elif config.data.dataset == "renewable":
+        data_object = Renewable(config, validation, config.data.type)
         data_type = "test" if test_set else "train"
-        logging.info(data_object.summary_dataset(split=data_type))
-        data = data_object.return_dataset(split=data_type)
+        logging.info(data_object.summary_dataset(data_type))
+        data = data_object.return_dataset(data_type)
+    else:
+        raise NotImplementedError(f"{config.data.dataset} not recognized!")
 
     return data_object, data

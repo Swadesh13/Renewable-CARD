@@ -1,9 +1,9 @@
 export EXP_DIR=./results
 export N_STEPS=1000
 export SERVER_NAME=local
-export RUN_NAME=run_1
+export RUN_NAME=test_run_lat
 export LOSS=card_conditional
-export TASK=renewable_solar
+export TASK=$1
 export N_SPLITS=1
 export N_THREADS=4
 export DEVICE_ID=1

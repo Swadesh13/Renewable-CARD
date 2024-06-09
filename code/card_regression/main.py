@@ -72,10 +72,15 @@ parser.add_argument(
     default="images",
     help="The folder name of samples",
 )
-parser.add_argument("--n_splits", type=int, default=20, help="total number of splits for a specific regression task")
+parser.add_argument(
+    "--n_splits", type=int, default=20, help="total number of splits for a specific regression task"
+)
 parser.add_argument("--split", type=int, default=0, help="which split to use for regression data")
 parser.add_argument(
-    "--init_split", type=int, default=0, help="initial split to train for regression data, usually for resume training"
+    "--init_split",
+    type=int,
+    default=0,
+    help="initial split to train for regression data, usually for resume training",
 )
 parser.add_argument("--rmse_timestep", type=int, default=0, help="selected timestep to report metric y RMSE")
 parser.add_argument("--qice_timestep", type=int, default=0, help="selected timestep to report metric y QICE")
@@ -147,7 +152,7 @@ def parse_config():
         new_config.diffusion.noise_prior = True if args.noise_prior else False
         new_config.model.cat_y_pred = False if args.no_cat_f_phi else True
         if not args.resume_training:
-            if not args.timesteps is None:
+            if args.timesteps is not None:
                 new_config.diffusion.timesteps = args.timesteps
             if args.num_sample > 1:
                 new_config.diffusion.num_sample = args.num_sample
@@ -260,14 +265,18 @@ def main():
             runner.sample()
             procedure = "Sampling"
         elif args.test:
-            y_rmse_all_steps_list, y_qice_all_steps_list, y_picp_all_steps_list, y_nll_all_steps_list = runner.test()
+            y_rmse_all_steps_list, y_qice_all_steps_list, y_picp_all_steps_list, y_nll_all_steps_list = (
+                runner.test()
+            )
             procedure = "Testing"
         else:
             runner.train()
             procedure = "Training"
         end_time = time.time()
         logging.info(
-            "\n{} procedure finished. It took {:.4f} minutes.\n\n\n".format(procedure, (end_time - start_time) / 60)
+            "\n{} procedure finished. It took {:.4f} minutes.\n\n\n".format(
+                procedure, (end_time - start_time) / 60
+            )
         )
         # remove logging handlers
         handlers = logger.handlers[:]
@@ -276,7 +285,13 @@ def main():
             handler.close()
         # return test metric lists
         if args.test:
-            return y_rmse_all_steps_list, y_qice_all_steps_list, y_picp_all_steps_list, y_nll_all_steps_list, config
+            return (
+                y_rmse_all_steps_list,
+                y_qice_all_steps_list,
+                y_picp_all_steps_list,
+                y_nll_all_steps_list,
+                config,
+            )
     except Exception:
         logging.error(traceback.format_exc())
 
@@ -298,9 +313,13 @@ if __name__ == "__main__":
             args.doc = original_doc + "/split_" + str(args.split)
             if args.test:
                 args.config = original_config + args.doc + "/config.yml"
-                y_rmse_all_steps_list, y_qice_all_steps_list, y_picp_all_steps_list, y_nll_all_steps_list, config = (
-                    main()
-                )
+                (
+                    y_rmse_all_steps_list,
+                    y_qice_all_steps_list,
+                    y_picp_all_steps_list,
+                    y_nll_all_steps_list,
+                    config,
+                ) = main()
                 y_rmse_all_splits_all_steps_list.append(y_rmse_all_steps_list)
                 y_qice_all_splits_all_steps_list.append(y_qice_all_steps_list)
                 y_picp_all_splits_all_steps_list.append(y_picp_all_steps_list)
@@ -315,13 +334,21 @@ if __name__ == "__main__":
             qice_idx = n_timesteps - args.qice_timestep
             picp_idx = n_timesteps - args.picp_timestep
             nll_idx = n_timesteps - args.nll_timestep
-            y_rmse_all_splits_list = [metric_list[rmse_idx] for metric_list in y_rmse_all_splits_all_steps_list]
-            y_qice_all_splits_list = [metric_list[qice_idx] for metric_list in y_qice_all_splits_all_steps_list]
-            y_picp_all_splits_list = [metric_list[picp_idx] for metric_list in y_picp_all_splits_all_steps_list]
+            y_rmse_all_splits_list = [
+                metric_list[rmse_idx] for metric_list in y_rmse_all_splits_all_steps_list
+            ]
+            y_qice_all_splits_list = [
+                metric_list[qice_idx] for metric_list in y_qice_all_splits_all_steps_list
+            ]
+            y_picp_all_splits_list = [
+                metric_list[picp_idx] for metric_list in y_picp_all_splits_all_steps_list
+            ]
             y_nll_all_splits_list = [metric_list[nll_idx] for metric_list in y_nll_all_splits_all_steps_list]
 
             print("\n\n================ Results Across Splits ================")
-            print(f"y_RMSE mean: {np.mean(y_rmse_all_splits_list)} y_RMSE std: {np.std(y_rmse_all_splits_list)}")
+            print(
+                f"y_RMSE mean: {np.mean(y_rmse_all_splits_list)} y_RMSE std: {np.std(y_rmse_all_splits_list)}"
+            )
             print(f"QICE mean: {np.mean(y_qice_all_splits_list)} QICE std: {np.std(y_qice_all_splits_list)}")
             print(f"PICP mean: {np.mean(y_picp_all_splits_list)} PICP std: {np.std(y_picp_all_splits_list)}")
             print(f"NLL mean: {np.mean(y_nll_all_splits_list)} NLL std: {np.std(y_nll_all_splits_list)}")
@@ -385,7 +412,9 @@ if __name__ == "__main__":
                 os.makedirs(im_path)
             fig.savefig(os.path.join(im_path, "mean_metrics_all_splits_all_timesteps.pdf"))
 
-            timestr = datetime.now(timezone(timedelta(hours=-6))).strftime("%Y%m%d-%H%M%S-%f")  # US Central time
+            timestr = datetime.now(timezone(timedelta(hours=-6))).strftime(
+                "%Y%m%d-%H%M%S-%f"
+            )  # US Central time
             res_file_path = os.path.join(args.exp, "logs", original_doc, "metrics_all_splits")
             res_dict = {
                 "n_splits": args.n_splits,

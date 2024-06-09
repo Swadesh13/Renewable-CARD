@@ -29,10 +29,10 @@ class ConditionalGuidedModel(nn.Module):
             data_dim += config.model.x_dim
         if self.cat_y_pred:
             data_dim += config.model.y_dim
-        self.lin1 = ConditionalLinear(data_dim, 128, n_steps)
-        self.lin2 = ConditionalLinear(128, 128, n_steps)
-        self.lin3 = ConditionalLinear(128, 128, n_steps)
-        self.lin4 = nn.Linear(128, 1)
+        self.lin1 = ConditionalLinear(data_dim, 256, n_steps)
+        self.lin2 = ConditionalLinear(256, 256, n_steps)
+        # self.lin3 = ConditionalLinear(256, 256, n_steps)
+        self.lin4 = nn.Linear(256, 1)
 
     def forward(self, x, y_t, y_0_hat, t):
         if self.cat_x:
@@ -47,7 +47,7 @@ class ConditionalGuidedModel(nn.Module):
                 eps_pred = y_t
         eps_pred = F.softplus(self.lin1(eps_pred, t))
         eps_pred = F.softplus(self.lin2(eps_pred, t))
-        eps_pred = F.softplus(self.lin3(eps_pred, t))
+        # eps_pred = F.softplus(self.lin3(eps_pred, t))
         return self.lin4(eps_pred)
 
 
@@ -135,7 +135,6 @@ class EarlyStopping:
         self.early_stop = False
 
     def __call__(self, val_cost, epoch, verbose=False):
-
         score = val_cost
 
         if self.best_score is None:

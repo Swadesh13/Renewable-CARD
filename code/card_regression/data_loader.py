@@ -183,40 +183,79 @@ def compute_y_noiseless_mean(dataset, x_test_batch, true_function="linear"):
     return y_true_mean.numpy()
 
 
-class Renewable_Solar(object):
-    def __init__(self, config):
+class Renewable(object):
+    def __init__(self, config, validation, dtype="solar"):
+        assert dtype in ["solar", "wind"], "Only solar and wind data available!"
+        # Train set : always
+        # Test set : validation - False
+        # Validation set : validation - True
         # global variables for reading data files
         _DATA_DIRECTORY_PATH = os.path.join(config.data.data_root, config.data.dir)
-        _DATA_FILE = os.readlink(os.path.join(_DATA_DIRECTORY_PATH, "solar.npy"))
-        _TARGET_FILE = os.readlink(os.path.join(_DATA_DIRECTORY_PATH, "Realised_Supply_Germany.csv"))
+        _DATA_FILE = os.path.join(_DATA_DIRECTORY_PATH, f"{dtype}.npy")
+        _TARGET_FILE = os.path.join(_DATA_DIRECTORY_PATH, "Realised_Supply_Germany.csv")
+        if validation:
+            print("Loading train and validation data")
+        else:
+            print("Loading train and test data")
+            _TEST_DATA_FILE = os.path.join(_DATA_DIRECTORY_PATH, f"{dtype}_2022.npy")
         # set random seed 1 -- same setup as MC Dropout
         utils.set_random_seed(1)
 
         x_data = np.load(_DATA_FILE)
-        y_data = pd.read_csv(_TARGET_FILE)["Photovoltaic [MW]"].values[: (365 * 2 + 366) * 24][:, None]
+        if dtype == "solar":
+            y_data = pd.read_csv(_TARGET_FILE)["Photovoltaic [MW]"].values
+        else:
+            y_data = pd.read_csv(_TARGET_FILE)["Wind Total [MW]"].values
+        if not validation:
+            x_test_data = np.load(_TEST_DATA_FILE)
+            y_test_data = y_data[(365 * 2 + 366) * 24 :][:, None]
+        y_data = y_data[: (365 * 2 + 366) * 24][:, None]
 
         if config.data.reduce_1d:
-            x_data_ = x_data.mean((1, 2))
+            x_data_ = x_data.mean(2).reshape(x_data.shape[0], -1)
+            if not validation:
+                x_test_data_ = x_test_data.mean(2).reshape(x_test_data.shape[0], -1)
             if config.data.add_prev:
                 x_data_ = np.hstack([x_data_, y_data])
+                if not validation:
+                    x_test_data_ = np.hstack([x_test_data_, y_test_data])
         shape_ = x_data_.shape
         x_data_ = copy.deepcopy(
             np.lib.stride_tricks.sliding_window_view(x_data_, config.data.window_size, 0).swapaxes(1, 2)
         )
+        if not validation:
+            x_test_data_ = copy.deepcopy(
+                np.lib.stride_tricks.sliding_window_view(x_test_data_, config.data.window_size, 0).swapaxes(
+                    1, 2
+                )
+            )
         if config.data.add_prev and shape_[-1] == x_data.shape[-1] + 1:
             x_data_[:, -1, -1] = 0
+            if not validation:
+                x_test_data_[:, -1, -1] = 0
         if len(x_data_.shape) > 2:
             x_data_ = x_data_.reshape(x_data_.shape[0], -1)
+            if not validation:
+                x_test_data_ = x_test_data_.reshape(x_test_data_.shape[0], -1)
 
         # load feature and target as X and y
         X = x_data_.astype(np.float32)
         y = y_data.astype(np.float32)[config.data.window_size - 1 :]
+        if not validation:
+            x_test_data = x_test_data_.astype(np.float32)
+            y_test_data = y_test_data.astype(np.float32)[config.data.window_size - 1 :]
 
-        idx_split = (365 + 366) * 24
-        x_train = X[:idx_split]
-        y_train = y[:idx_split].reshape(-1, 1)
-        x_test = X[idx_split:]
-        y_test = y[idx_split:].reshape(-1, 1)
+        if validation:
+            idx_split = (365 + 366) * 24
+            x_train = X[:idx_split]
+            y_train = y[:idx_split].reshape(-1, 1)
+            x_test = X[idx_split:]
+            y_test = y[idx_split:].reshape(-1, 1)
+        else:
+            x_train = X
+            y_train = y.reshape(-1, 1)
+            x_test = x_test_data
+            y_test = y_test_data.reshape(-1, 1)
 
         self.x_train = x_train if type(x_train) is torch.Tensor else torch.from_numpy(x_train)
         self.y_train = y_train if type(y_train) is torch.Tensor else torch.from_numpy(y_train)

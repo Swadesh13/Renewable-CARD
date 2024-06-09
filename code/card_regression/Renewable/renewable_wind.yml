@@ -1,6 +1,6 @@
 data:
     dataset: "renewable"
-    type: "solar"
+    type: "wind"
     dir: "data"
     window_size: 5
     reduce_1d: True
