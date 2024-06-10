@@ -53,13 +53,23 @@ class ConditionalGuidedModel(nn.Module):
 
 # deterministic feed forward neural network
 class DeterministicFeedForwardNeuralNetwork(nn.Module):
-    def __init__(self, dim_in, dim_out, hid_layers, use_batchnorm=False, negative_slope=0.01, dropout_rate=0):
+    def __init__(
+        self,
+        dim_in,
+        dim_out,
+        hid_layers,
+        use_batchnorm=False,
+        use_layernorm=False,
+        negative_slope=0.01,
+        dropout_rate=0,
+    ):
         super(DeterministicFeedForwardNeuralNetwork, self).__init__()
         self.dim_in = dim_in  # dimension of nn input
         self.dim_out = dim_out  # dimension of nn output
         self.hid_layers = hid_layers  # nn hidden layer architecture
         self.nn_layers = [self.dim_in] + self.hid_layers  # nn hidden layer architecture, except output layer
         self.use_batchnorm = use_batchnorm  # whether apply batch norm
+        self.use_layernorm = use_layernorm
         self.negative_slope = negative_slope  # negative slope for LeakyReLU
         self.dropout_rate = dropout_rate
         layers = self.create_nn_layers()

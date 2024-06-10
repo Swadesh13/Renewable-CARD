@@ -94,6 +94,7 @@ class Diffusion(object):
                 dim_out=config.model.y_dim,
                 hid_layers=config.diffusion.nonlinear_guidance.hid_layers,
                 use_batchnorm=config.diffusion.nonlinear_guidance.use_batchnorm,
+                use_layernorm=config.diffusion.nonlinear_guidance.use_layernorm,
                 negative_slope=config.diffusion.nonlinear_guidance.negative_slope,
                 dropout_rate=config.diffusion.nonlinear_guidance.dropout_rate,
             ).to(self.device)
