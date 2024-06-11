@@ -631,6 +631,47 @@ class Diffusion(object):
             qice_coverage_ratio = np.absolute(np.ones(n_bins) / n_bins - y_true_ratio_by_bin).mean()
             return y_true_ratio_by_bin, qice_coverage_ratio, y_true
 
+        def compute_CRPS(all_true_y, all_generated_y, scaler_y=None):
+            if scaler_y:
+                y_pred = (
+                    scaler_y.inverse_transform(all_generated_y.reshape(-1, 1))
+                    .reshape(all_generated_y.shape)
+                    .astype(np.float32)
+                    .squeeze()
+                    .T
+                )
+                y_true = scaler_y.inverse_transform(all_true_y).astype(np.float32).squeeze()
+            else:
+                y_pred = scaler_y.squeeze().T
+                y_true = all_true_y.squeeze()
+            num_samples = y_pred.shape[0]
+            absolute_error = np.mean(np.abs(y_pred - y_true), axis=0)
+            y_pred = np.sort(y_pred, axis=0)
+            diff = y_pred[1:] - y_pred[:-1]
+            weight = np.arange(1, num_samples) * np.arange(num_samples - 1, 0, -1)
+            weight = np.expand_dims(weight, -1)
+            per_obs_crps = absolute_error - np.sum(diff * weight, axis=0) / num_samples**2
+            return np.average(per_obs_crps)
+
+        def compute_pinball_loss(config, y_true, all_gen_y, scaler_y=None, quantile_list=None):
+            #! Use mean or draw values at different quantiles?
+            low, high = config.testing.trimmed_mean_range
+            if low == 50 and high == 50:
+                y_pred_mean = np.median(all_gen_y, axis=1)  # use median of samples as the mean prediction
+            else:  # compute trimmed mean (i.e. discarding certain parts of the samples at both ends)
+                all_gen_y.sort(axis=1)
+                low_idx = int(low / 100 * config.testing.n_z_samples)
+                high_idx = int(high / 100 * config.testing.n_z_samples)
+                y_pred_mean = (all_gen_y[:, low_idx:high_idx]).mean(axis=1)
+            if scaler_y:
+                y_true = scaler_y.inverse_transform(y_true).astype(np.float32)
+                y_pred_mean = scaler_y.inverse_transform(y_pred_mean).astype(np.float32)
+
+            quantile_list = np.expand_dims(np.array(quantile_list or np.arange(0.1, 1, 0.1)), 0)
+            loss = y_true - y_pred_mean
+            loss = np.maximum(quantile_list * loss, (quantile_list - 1) * loss)
+            return np.mean(loss)
+
         def compute_PICP(config, y_true, all_gen_y, return_CI=False):
             """
             Another coverage metric.
@@ -840,7 +881,7 @@ class Diffusion(object):
             plt.close("all")
 
         if config.testing.compute_metric_all_steps:
-            logging.info("\nWe compute RMSE, QICE, PICP and NLL for all steps.\n")
+            logging.info("\nWe compute RMSE, QICE, CRPS, PICP, Pinball and NLL for all steps.\n")
         else:
             mean_idx = self.num_timesteps - config.testing.mean_t
             coverage_idx = self.num_timesteps - config.testing.coverage_t
@@ -848,7 +889,7 @@ class Diffusion(object):
             logging.info(
                 (
                     "\nWe pick t={} to compute y mean metric RMSE, "
-                    + "and t={} to compute true y coverage metric QICE and PICP.\n"
+                    + "and t={} to compute true y coverage metric QICE, CRPS, PICP and Pinball.\n"
                 ).format(config.testing.mean_t, config.testing.coverage_t)
             )
 
@@ -1015,7 +1056,9 @@ class Diffusion(object):
             all_true_x_tile = np.concatenate(true_x_tile_by_batch_list, axis=0)
         y_rmse_all_steps_list = []
         y_qice_all_steps_list = []
+        y_crps_all_steps_list = []
         y_picp_all_steps_list = []
+        y_pinball_all_steps_list = []
         y_nll_all_steps_list = []
 
         if config.testing.compute_metric_all_steps:
@@ -1034,14 +1077,20 @@ class Diffusion(object):
                     verbose=False,
                 )
                 y_qice_all_steps_list.append(qice_coverage_ratio)
+                # compute CRPS
+                crps = compute_CRPS(all_true_y, all_gen_y, dataset_object.scaler_y)
+                y_crps_all_steps_list.append(crps)
                 # compute PICP
                 coverage, _, _ = compute_PICP(config=config, y_true=y_true, all_gen_y=all_gen_y)
                 y_picp_all_steps_list.append(coverage)
+                # compute Pinball loss
+                pinball_loss = compute_pinball_loss(config, all_true_y, all_gen_y, dataset_object.scaler_y)
+                y_pinball_all_steps_list.append(pinball_loss)
                 # compute NLL
                 y_nll = np.mean(nll_by_batch_list[current_t])
                 y_nll_all_steps_list.append(y_nll)
             # make plot for metrics across all timesteps during reverse diffusion
-            n_metrics = 4
+            n_metrics = 6
             fig, axs = plt.subplots(n_metrics, 1, figsize=(8.5, n_metrics * 3), clear=True)  # W x H
             plt.subplots_adjust(hspace=0.5)
             xticks = np.arange(0, self.num_timesteps + 1, config.diffusion.vis_step)
@@ -1075,6 +1124,20 @@ class Diffusion(object):
             axs[3].set_xticks(xticks)
             axs[3].set_xticklabels(xticks[::-1])
             axs[3].set_ylabel("y NLL", fontsize=12)
+            # CRPS
+            axs[4].plot(y_crps_all_steps_list)
+            # axs[1].set_title('y CRPS across All Timesteps', fontsize=18)
+            axs[4].set_xlabel("timestep", fontsize=12)
+            axs[4].set_xticks(xticks)
+            axs[4].set_xticklabels(xticks[::-1])
+            axs[4].set_ylabel("y CRPS", fontsize=12)
+            # Pinball
+            axs[5].plot(y_crps_all_steps_list)
+            # axs[1].set_title('y Pinball across All Timesteps', fontsize=18)
+            axs[5].set_xlabel("timestep", fontsize=12)
+            axs[5].set_xticks(xticks)
+            axs[5].set_xticklabels(xticks[::-1])
+            axs[5].set_ylabel("y Pinball", fontsize=12)
             # fig.suptitle('y Metrics across All Timesteps')
             fig.savefig(os.path.join(args.im_path, "metrics_all_timesteps.pdf"))
         else:
@@ -1099,6 +1162,9 @@ class Diffusion(object):
                     + "quantile interval and optimal ratio is {:.8f}."
                 ).format(y_rmse, qice_coverage_ratio)
             )
+            # compute CRPS
+            crps = compute_CRPS(all_true_y, all_gen_y, dataset_object.scaler_y)
+            y_crps_all_steps_list.append(crps)
             # compute PICP -- another coverage metric
             coverage, low, high = compute_PICP(config=config, y_true=y_true, all_gen_y=all_gen_y)
             y_picp_all_steps_list.append(coverage)
@@ -1108,14 +1174,19 @@ class Diffusion(object):
                     + "the computed {:.0f}% credible interval."
                 ).format(100 * coverage, high - low)
             )
+            # compute Pinball loss
+            pinball_loss = compute_pinball_loss(config, y_true, all_gen_y, dataset_object.scaler_y)
+            y_pinball_all_steps_list.append(pinball_loss)
             # compute NLL
             y_nll = np.mean(nll_by_batch_list[config.testing.nll_t])
             y_nll_all_steps_list.append(y_nll)
             logging.info("\nNegative Log-Likelihood on test set is {:.8f}.".format(y_nll))
 
-        logging.info(f"y RMSE at all steps: {y_rmse_all_steps_list}.\n")
-        logging.info(f"y QICE at all steps: {y_qice_all_steps_list}.\n")
+        logging.info(f"y RMSE at all steps: {y_rmse_all_steps_list}.\n\n")
+        logging.info(f"y QICE at all steps: {y_qice_all_steps_list}.\n\n")
+        logging.info(f"y CRPS at all steps: {y_crps_all_steps_list}.\n\n")
         logging.info(f"y PICP at all steps: {y_picp_all_steps_list}.\n\n")
+        logging.info(f"y Pinball at all steps: {y_pinball_all_steps_list}.\n\n")
         logging.info(f"y NLL at all steps: {y_nll_all_steps_list}.\n\n")
 
         # make plots for true vs. generated distribution comparison
@@ -1136,6 +1207,9 @@ class Diffusion(object):
                     + "quantile interval and optimal ratio is {:.8f}."
                 ).format(qice_coverage_ratio)
             )
+            # compute CRPS
+            crps = compute_CRPS(all_true_y, all_gen_y, dataset_object.scaler_y)
+            y_crps_all_steps_list.append(crps)
             # compute PICP and RMSE
             if config.data.no_multimodality:
                 if not config.data.inverse_xy:
@@ -1150,6 +1224,9 @@ class Diffusion(object):
                 generated_y=all_gen_y,
                 return_pred_mean=True,
             )
+            # compute Pinball loss
+            pinball_loss = compute_pinball_loss(config, y_true, all_gen_y, dataset_object.scaler_y)
+            y_pinball_all_steps_list.append(pinball_loss)
 
             # create plot
             logging.info("\nNow we start making the plot...")
@@ -1374,4 +1451,11 @@ class Diffusion(object):
         del y_se_by_batch_list
         gc.collect()
 
-        return y_rmse_all_steps_list, y_qice_all_steps_list, y_picp_all_steps_list, y_nll_all_steps_list
+        return (
+            y_rmse_all_steps_list,
+            y_qice_all_steps_list,
+            y_crps_all_steps_list,
+            y_picp_all_steps_list,
+            y_pinball_all_steps_list,
+            y_nll_all_steps_list,
+        )
