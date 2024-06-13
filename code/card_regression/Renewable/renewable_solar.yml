@@ -10,6 +10,7 @@ data:
     normalize_x: True
     normalize_y: True
     data_root: "../../"
+    hour_24: True
 
 model:
     type: "simple"

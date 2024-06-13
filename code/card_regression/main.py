@@ -16,128 +16,147 @@ from utils import dict2namespace, set_random_seed
 
 torch.set_printoptions(sci_mode=False)
 
-parser = argparse.ArgumentParser(description=globals()["__doc__"])
 
-parser.add_argument("--config", type=str, required=True, help="Path to the config file")
-parser.add_argument("--device", type=int, default=0, help="GPU device id")
-parser.add_argument("--thread", type=int, default=4, help="number of threads")
-parser.add_argument("--seed", type=int, default=1234, help="Random seed")
-parser.add_argument("--exp", type=str, default="exp", help="Path for saving running related data.")
-parser.add_argument(
-    "--doc",
-    type=str,
-    default="./log",
-    help="A string for documentation purpose. " "Will be the name of the log folder.",
-)
-parser.add_argument("--comment", type=str, default="", help="A string for experiment comment")
-parser.add_argument(
-    "--verbose",
-    type=str,
-    default="info",
-    help="Verbose level: info | debug | warning | critical",
-)
-parser.add_argument("--test", action="store_true", help="Whether to test the model")
-parser.add_argument(
-    "--sample",
-    action="store_true",
-    help="Whether to produce samples from the model",
-)
-parser.add_argument(
-    "--train_guidance_only",
-    action="store_true",
-    help="Whether to only pre-train the guidance model f_phi",
-)
-parser.add_argument(
-    "--run_all",
-    action="store_true",
-    help="Whether to run all train test splits",
-)
-parser.add_argument(
-    "--noise_prior",
-    action="store_true",
-    help="Whether to apply a noise prior distribution at timestep T",
-)
-parser.add_argument(
-    "--no_cat_f_phi",
-    action="store_true",
-    help="Whether to not concatenate f_phi as part of eps_theta input",
-)
-parser.add_argument("--fid", action="store_true")
-parser.add_argument("--interpolation", action="store_true")
-parser.add_argument("--resume_training", action="store_true", help="Whether to resume training")
-parser.add_argument(
-    "-i",
-    "--image_folder",
-    type=str,
-    default="images",
-    help="The folder name of samples",
-)
-parser.add_argument(
-    "--n_splits", type=int, default=20, help="total number of splits for a specific regression task"
-)
-parser.add_argument("--split", type=int, default=0, help="which split to use for regression data")
-parser.add_argument(
-    "--init_split",
-    type=int,
-    default=0,
-    help="initial split to train for regression data, usually for resume training",
-)
-parser.add_argument("--rmse_timestep", type=int, default=0, help="selected timestep to report metric y RMSE")
-parser.add_argument("--qice_timestep", type=int, default=0, help="selected timestep to report metric y QICE")
-parser.add_argument("--crps_timestep", type=int, default=0, help="selected timestep to report metric y CRPS")
-parser.add_argument("--picp_timestep", type=int, default=0, help="selected timestep to report metric y PICP")
-parser.add_argument(
-    "--pinball_timestep", type=int, default=0, help="selected timestep to report metric y Pinball"
-)
-parser.add_argument("--nll_timestep", type=int, default=0, help="selected timestep to report metric y NLL")
-parser.add_argument(
-    "--ni",
-    action="store_true",
-    help="No interaction. Suitable for Slurm Job launcher",
-)
-parser.add_argument("--use_pretrained", action="store_true")
-parser.add_argument(
-    "--sample_type",
-    type=str,
-    default="generalized",
-    help="sampling approach (generalized or ddpm_noisy)",
-)
-parser.add_argument(
-    "--skip_type",
-    type=str,
-    default="uniform",
-    help="skip according to (uniform or quadratic)",
-)
-parser.add_argument("--timesteps", type=int, default=None, help="number of steps involved")
-parser.add_argument(
-    "--eta",
-    type=float,
-    default=0.0,
-    help="eta used to control the variances of sigma",
-)
-parser.add_argument("--sequence", action="store_true")
-# loss option
-parser.add_argument("--loss", type=str, default="ddpm", help="Which loss to use")
-parser.add_argument("--nll_global_var", action="store_true", help="Apply global variance for NLL computation")
-parser.add_argument(
-    "--nll_test_var", action="store_true", help="Apply sample variance of the test set for NLL computation"
-)
-# Conditional transport options
-parser.add_argument(
-    "--use_d",
-    action="store_true",
-    help="Whether to take an adversarially trained feature encoder",
-)
-parser.add_argument(
-    "--full_joint",
-    action="store_true",
-    help="Whether to take fully joint matching",
-)
-parser.add_argument("--num_sample", type=int, default=1, help="number of samples used in forward and reverse")
-args = parser.parse_args()
+def parse_args():
+    parser = argparse.ArgumentParser(description=globals()["__doc__"])
+
+    parser.add_argument("--config", type=str, required=True, help="Path to the config file")
+    parser.add_argument("--device", type=int, default=0, help="GPU device id")
+    parser.add_argument("--thread", type=int, default=4, help="number of threads")
+    parser.add_argument("--seed", type=int, default=1234, help="Random seed")
+    parser.add_argument("--exp", type=str, default="exp", help="Path for saving running related data.")
+    parser.add_argument(
+        "--doc",
+        type=str,
+        default="./log",
+        help="A string for documentation purpose. " "Will be the name of the log folder.",
+    )
+    parser.add_argument("--comment", type=str, default="", help="A string for experiment comment")
+    parser.add_argument(
+        "--verbose",
+        type=str,
+        default="info",
+        help="Verbose level: info | debug | warning | critical",
+    )
+    parser.add_argument("--test", action="store_true", help="Whether to test the model")
+    parser.add_argument(
+        "--sample",
+        action="store_true",
+        help="Whether to produce samples from the model",
+    )
+    parser.add_argument(
+        "--train_guidance_only",
+        action="store_true",
+        help="Whether to only pre-train the guidance model f_phi",
+    )
+    parser.add_argument(
+        "--run_all",
+        action="store_true",
+        help="Whether to run all train test splits",
+    )
+    parser.add_argument(
+        "--noise_prior",
+        action="store_true",
+        help="Whether to apply a noise prior distribution at timestep T",
+    )
+    parser.add_argument(
+        "--no_cat_f_phi",
+        action="store_true",
+        help="Whether to not concatenate f_phi as part of eps_theta input",
+    )
+    parser.add_argument("--fid", action="store_true")
+    parser.add_argument("--interpolation", action="store_true")
+    parser.add_argument("--resume_training", action="store_true", help="Whether to resume training")
+    parser.add_argument(
+        "-i",
+        "--image_folder",
+        type=str,
+        default="images",
+        help="The folder name of samples",
+    )
+    parser.add_argument(
+        "--n_splits", type=int, default=20, help="total number of splits for a specific regression task"
+    )
+    parser.add_argument("--split", type=int, default=0, help="which split to use for regression data")
+    parser.add_argument(
+        "--init_split",
+        type=int,
+        default=0,
+        help="initial split to train for regression data, usually for resume training",
+    )
+    parser.add_argument(
+        "--rmse_timestep", type=int, default=0, help="selected timestep to report metric y RMSE"
+    )
+    parser.add_argument(
+        "--qice_timestep", type=int, default=0, help="selected timestep to report metric y QICE"
+    )
+    parser.add_argument(
+        "--crps_timestep", type=int, default=0, help="selected timestep to report metric y CRPS"
+    )
+    parser.add_argument(
+        "--picp_timestep", type=int, default=0, help="selected timestep to report metric y PICP"
+    )
+    parser.add_argument(
+        "--pinball_timestep", type=int, default=0, help="selected timestep to report metric y Pinball"
+    )
+    parser.add_argument(
+        "--nll_timestep", type=int, default=0, help="selected timestep to report metric y NLL"
+    )
+    parser.add_argument(
+        "--ni",
+        action="store_true",
+        help="No interaction. Suitable for Slurm Job launcher",
+    )
+    parser.add_argument("--use_pretrained", action="store_true")
+    parser.add_argument(
+        "--sample_type",
+        type=str,
+        default="generalized",
+        help="sampling approach (generalized or ddpm_noisy)",
+    )
+    parser.add_argument(
+        "--skip_type",
+        type=str,
+        default="uniform",
+        help="skip according to (uniform or quadratic)",
+    )
+    parser.add_argument("--timesteps", type=int, default=None, help="number of steps involved")
+    parser.add_argument(
+        "--eta",
+        type=float,
+        default=0.0,
+        help="eta used to control the variances of sigma",
+    )
+    parser.add_argument("--sequence", action="store_true")
+    # loss option
+    parser.add_argument("--loss", type=str, default="ddpm", help="Which loss to use")
+    parser.add_argument(
+        "--nll_global_var", action="store_true", help="Apply global variance for NLL computation"
+    )
+    parser.add_argument(
+        "--nll_test_var",
+        action="store_true",
+        help="Apply sample variance of the test set for NLL computation",
+    )
+    # Conditional transport options
+    parser.add_argument(
+        "--use_d",
+        action="store_true",
+        help="Whether to take an adversarially trained feature encoder",
+    )
+    parser.add_argument(
+        "--full_joint",
+        action="store_true",
+        help="Whether to take fully joint matching",
+    )
+    parser.add_argument(
+        "--num_sample", type=int, default=1, help="number of samples used in forward and reverse"
+    )
+    args = parser.parse_args()
+    return args
 
 
-def parse_config():
+def parse_config(args):
     # set log path
     args.log_path = os.path.join(args.exp, "logs", args.doc)
     # parse config file
@@ -249,8 +268,8 @@ def parse_config():
     return new_config, logger
 
 
-def main():
-    config, logger = parse_config()
+def main(args):
+    config, logger = parse_config(args)
 
     logging.info("Writing log file to {}".format(args.log_path))
     logging.info("Exp instance id = {}".format(os.getpid()))
@@ -308,6 +327,7 @@ def main():
 
 
 if __name__ == "__main__":
+    args = parse_args()
     if args.run_all:
         (
             y_rmse_all_splits_all_steps_list,
@@ -334,7 +354,7 @@ if __name__ == "__main__":
                     y_pinball_all_steps_list,
                     y_nll_all_steps_list,
                     config,
-                ) = main()
+                ) = main(args)
                 y_rmse_all_splits_all_steps_list.append(y_rmse_all_steps_list)
                 y_qice_all_splits_all_steps_list.append(y_qice_all_steps_list)
                 y_crps_all_splits_all_steps_list.append(y_crps_all_steps_list)
@@ -342,7 +362,7 @@ if __name__ == "__main__":
                 y_pinball_all_splits_all_steps_list.append(y_pinball_all_steps_list)
                 y_nll_all_splits_all_steps_list.append(y_nll_all_steps_list)
             else:
-                main()
+                main(args)
 
         # summary statistics across all splits
         if args.run_all and args.test:
@@ -502,4 +522,4 @@ if __name__ == "__main__":
         args.doc = args.doc + "/split_" + str(args.split)
         if args.test:
             args.config = args.config + args.doc + "/config.yml"
-        sys.exit(main())
+        sys.exit(main(args))

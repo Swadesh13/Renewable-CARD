@@ -220,15 +220,22 @@ class Renewable(object):
                 if not validation:
                     x_test_data_ = np.hstack([x_test_data_, y_test_data])
         shape_ = x_data_.shape
-        x_data_ = copy.deepcopy(
-            np.lib.stride_tricks.sliding_window_view(x_data_, config.data.window_size, 0).swapaxes(1, 2)
-        )
-        if not validation:
-            x_test_data_ = copy.deepcopy(
-                np.lib.stride_tricks.sliding_window_view(x_test_data_, config.data.window_size, 0).swapaxes(
-                    1, 2
+        ws = config.data.window_size
+        if config.data.hour_24:
+            ws = ws * (24 - 1) + 1
+            x_data_ = copy.deepcopy(np.lib.stride_tricks.sliding_window_view(x_data_, ws, 0).swapaxes(1, 2))[
+                :, ::24
+            ]
+            if not validation:
+                x_test_data_ = copy.deepcopy(
+                    np.lib.stride_tricks.sliding_window_view(x_test_data_, ws, 0).swapaxes(1, 2)
+                )[:, ::24]
+        else:
+            x_data_ = copy.deepcopy(np.lib.stride_tricks.sliding_window_view(x_data_, ws, 0).swapaxes(1, 2))
+            if not validation:
+                x_test_data_ = copy.deepcopy(
+                    np.lib.stride_tricks.sliding_window_view(x_test_data_, ws, 0).swapaxes(1, 2)
                 )
-            )
         if config.data.add_prev and shape_[-1] == x_data.shape[-1] + 1:
             x_data_[:, -1, -1] = 0
             if not validation:
@@ -240,10 +247,10 @@ class Renewable(object):
 
         # load feature and target as X and y
         X = x_data_.astype(np.float32)
-        y = y_data.astype(np.float32)[config.data.window_size - 1 :]
+        y = y_data.astype(np.float32)[ws - 1 :]
         if not validation:
             x_test_data = x_test_data_.astype(np.float32)
-            y_test_data = y_test_data.astype(np.float32)[config.data.window_size - 1 :]
+            y_test_data = y_test_data.astype(np.float32)[ws - 1 :]
 
         if validation:
             idx_split = (365 + 366) * 24
