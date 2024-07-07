@@ -12,6 +12,7 @@ from model import ConditionalGuidedModel, DeterministicFeedForwardNeuralNetwork,
 from utils import get_dataset, get_optimizer
 from diffusion_utils import make_beta_schedule, p_sample_loop, q_sample
 from data_loader import compute_y_noiseless_mean
+from tqdm.auto import tqdm
 
 plt.style.use("ggplot")
 
@@ -19,6 +20,8 @@ plt.style.use("ggplot")
 class Diffusion(object):
     def __init__(self, args, config, device=None):
         self.args = args
+        _, dataset = get_dataset(args, config, test_set=False)
+        config.model.x_dim = dataset.shape[-1] - config.model.y_dim
         self.config = config
         if device is None:
             device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -97,8 +100,9 @@ class Diffusion(object):
                 use_layernorm=config.diffusion.nonlinear_guidance.use_layernorm,
                 negative_slope=config.diffusion.nonlinear_guidance.negative_slope,
                 dropout_rate=config.diffusion.nonlinear_guidance.dropout_rate,
+                window_size=config.data.window_size,
             ).to(self.device)
-            self.aux_cost_function = nn.MSELoss()
+            self.aux_cost_function = nn.MSELoss()  # nn.L1Loss()  # nn.MSELoss()
         else:
             pass
 
@@ -122,6 +126,7 @@ class Diffusion(object):
         """
         Evaluate guidance model by reporting train or test set unnormalized y RMSE.
         """
+        self.cond_pred_model.eval()
         y_se_list = []
         for xy_0 in dataset_loader:
             xy_0 = xy_0.to(self.device)
@@ -145,6 +150,7 @@ class Diffusion(object):
             else:
                 y_se_list = np.concatenate([y_se_list, y_se], axis=0)
         y_rmse = np.sqrt(np.mean(y_se_list))
+        self.cond_pred_model.train()
         return y_rmse
 
     def evaluate_guidance_model_on_both_train_and_test_set(
@@ -305,10 +311,12 @@ class Diffusion(object):
                     delta=config.diffusion.nonlinear_guidance.delta,
                 )
                 train_val_start_time = time.time()
+                scheduler = torch.optim.lr_scheduler.MultiStepLR(aux_optimizer, [200, 300, 350], 0.1)
                 for epoch in range(config.diffusion.nonlinear_guidance.n_pretrain_max_epochs):
                     self.nonlinear_guidance_model_train_loop_per_epoch(
                         train_subset_loader, aux_optimizer, epoch
                     )
+                    scheduler.step()
                     y_val_rmse_aux_model = self.evaluate_guidance_model(val_set_object, val_loader)
                     val_cost = y_val_rmse_aux_model
                     early_stopper(val_cost=val_cost, epoch=epoch)
@@ -344,8 +352,10 @@ class Diffusion(object):
                 n_guidance_model_pretrain_epochs = early_stopper.best_epoch
                 aux_optimizer = get_optimizer(self.config.aux_optim, self.cond_pred_model.parameters())
             pretrain_start_time = time.time()
+            scheduler = torch.optim.lr_scheduler.MultiStepLR(aux_optimizer, [200, 300, 350], 0.1)
             for epoch in range(n_guidance_model_pretrain_epochs):
                 self.nonlinear_guidance_model_train_loop_per_epoch(train_loader, aux_optimizer, epoch)
+                scheduler.step()
             pretrain_end_time = time.time()
             logging.info(
                 "Pre-training of non-linear guidance model took {:.4f} minutes.".format(
@@ -353,6 +363,7 @@ class Diffusion(object):
                 )
             )
             logging.info("\nAfter pre-training:")
+            self.cond_pred_model.eval()
             self.evaluate_guidance_model_on_both_train_and_test_set(
                 dataset_object, train_loader, test_set_object, test_loader
             )
@@ -363,6 +374,7 @@ class Diffusion(object):
             ]
             torch.save(aux_states, os.path.join(self.args.log_path, "aux_ckpt.pth"))
 
+        self.cond_pred_model.train()
         # train diffusion model
         if not self.args.train_guidance_only:
             start_epoch, step = 0, 0
@@ -386,6 +398,7 @@ class Diffusion(object):
 
             if config.diffusion.noise_prior:  # apply 0 instead of f_phi(x) as prior mean
                 logging.info("Prior distribution at timestep T has a mean of 0.")
+            scheduler = torch.optim.lr_scheduler.MultiStepLR(aux_optimizer, [700, 900], 0.1)
             for epoch in range(start_epoch, self.config.training.n_epochs):
                 data_start = time.time()
                 data_time = 0
@@ -464,11 +477,11 @@ class Diffusion(object):
                         if self.config.model.ema:
                             states.append(ema_helper.state_dict())
 
-                        if step > 1:  # skip saving the initial ckpt
-                            torch.save(
-                                states,
-                                os.path.join(self.args.log_path, "ckpt_{}.pth".format(step)),
-                            )
+                        # if step > 1:  # skip saving the initial ckpt
+                        #     torch.save(
+                        #         states,
+                        #         os.path.join(self.args.log_path, "ckpt_{}.pth".format(step)),
+                        #     )
                         torch.save(states, os.path.join(self.args.log_path, "ckpt.pth"))
 
                         # save auxiliary model
@@ -479,11 +492,11 @@ class Diffusion(object):
                                     self.cond_pred_model.state_dict(),
                                     aux_optimizer.state_dict(),
                                 ]
-                                if step > 1:  # skip saving the initial ckpt
-                                    torch.save(
-                                        aux_states,
-                                        os.path.join(self.args.log_path, "aux_ckpt_{}.pth".format(step)),
-                                    )
+                                # if step > 1:  # skip saving the initial ckpt
+                                #     torch.save(
+                                #         aux_states,
+                                #         os.path.join(self.args.log_path, "aux_ckpt_{}.pth".format(step)),
+                                #     )
                                 torch.save(aux_states, os.path.join(self.args.log_path, "aux_ckpt.pth"))
 
                     if step % self.config.training.validation_freq == 0 or step == 1:
@@ -538,8 +551,12 @@ class Diffusion(object):
                                     )
                                 )
                             plt.close("all")
+                        # if step != 1:
+                        # self.test()
+                        # self.cond_pred_model.train()
 
                     data_start = time.time()
+                    scheduler.step()
             plt.close("all")
             # save the model after training is finished
             states = [
@@ -562,10 +579,17 @@ class Diffusion(object):
                 if config.diffusion.nonlinear_guidance.joint_train:
                     y_rmse_aux_model = self.evaluate_guidance_model(dataset_object, train_loader)
                     logging.info(
-                        "After joint-training, non-linear guidance model unnormalized y RMSE is {:.8f}.".format(
+                        "After joint-training, non-linear guidance model unnormalized train y RMSE is {:.8f}.".format(
                             y_rmse_aux_model
                         )
                     )
+                    y_rmse_aux_model = self.evaluate_guidance_model(dataset_object, test_loader)
+                    logging.info(
+                        "After joint-training, non-linear guidance model unnormalized test y RMSE is {:.8f}.".format(
+                            y_rmse_aux_model
+                        )
+                    )
+            self.test()
 
     def test(self):
         """
@@ -631,19 +655,9 @@ class Diffusion(object):
             qice_coverage_ratio = np.absolute(np.ones(n_bins) / n_bins - y_true_ratio_by_bin).mean()
             return y_true_ratio_by_bin, qice_coverage_ratio, y_true
 
-        def compute_CRPS(all_true_y, all_generated_y, scaler_y=None):
-            if scaler_y:
-                y_pred = (
-                    scaler_y.inverse_transform(all_generated_y.reshape(-1, 1))
-                    .reshape(all_generated_y.shape)
-                    .astype(np.float32)
-                    .squeeze()
-                    .T
-                )
-                y_true = scaler_y.inverse_transform(all_true_y).astype(np.float32).squeeze()
-            else:
-                y_pred = scaler_y.squeeze().T
-                y_true = all_true_y.squeeze()
+        def compute_CRPS(all_true_y, all_generated_y):
+            y_pred = all_generated_y.squeeze().T
+            y_true = all_true_y.squeeze()
             num_samples = y_pred.shape[0]
             absolute_error = np.mean(np.abs(y_pred - y_true), axis=0)
             y_pred = np.sort(y_pred, axis=0)
@@ -653,8 +667,7 @@ class Diffusion(object):
             per_obs_crps = absolute_error - np.sum(diff * weight, axis=0) / num_samples**2
             return np.average(per_obs_crps)
 
-        def compute_pinball_loss(config, y_true, all_gen_y, scaler_y=None, quantile_list=None):
-            #! Use mean or draw values at different quantiles?
+        def compute_pinball_loss(config, y_true, all_gen_y, quantile_list=None):
             low, high = config.testing.trimmed_mean_range
             if low == 50 and high == 50:
                 y_pred_mean = np.median(all_gen_y, axis=1)  # use median of samples as the mean prediction
@@ -663,9 +676,6 @@ class Diffusion(object):
                 low_idx = int(low / 100 * config.testing.n_z_samples)
                 high_idx = int(high / 100 * config.testing.n_z_samples)
                 y_pred_mean = (all_gen_y[:, low_idx:high_idx]).mean(axis=1)
-            if scaler_y:
-                y_true = scaler_y.inverse_transform(y_true).astype(np.float32)
-                y_pred_mean = scaler_y.inverse_transform(y_pred_mean).astype(np.float32)
 
             quantile_list = np.expand_dims(np.array(quantile_list or np.arange(0.1, 1, 0.1)), 0)
             loss = y_true - y_pred_mean
@@ -827,6 +837,7 @@ class Diffusion(object):
             self.cond_pred_model.eval()
         # report test set RMSE with guidance model
         y_rmse_aux_model = self.evaluate_guidance_model(dataset_object, test_loader)
+        self.cond_pred_model.eval()
         logging.info(
             "Test set unnormalized y RMSE on trained {} guidance model is {:.8f}.".format(
                 config.diffusion.conditioning_signal, y_rmse_aux_model
@@ -897,11 +908,12 @@ class Diffusion(object):
             true_x_by_batch_list = []
             true_x_tile_by_batch_list = []
             true_y_by_batch_list = []
+            cond_pred_y_list = []
             gen_y_by_batch_list = [[] for _ in range(self.num_timesteps + 1)]
             y_se_by_batch_list = [[] for _ in range(self.num_timesteps + 1)]
             nll_by_batch_list = [[] for _ in range(self.num_timesteps + 1)]
 
-            for step, xy_batch in enumerate(test_loader):
+            for step, xy_batch in tqdm(enumerate(test_loader), total=len(test_loader)):
                 # minibatch_start = time.time()
                 xy_0 = xy_batch.to(self.device)
                 current_batch_size = xy_0.shape[0]
@@ -910,6 +922,9 @@ class Diffusion(object):
                 # compute y_0_hat as the initial prediction to guide the reverse diffusion process
                 y_0_hat_batch = self.compute_guiding_prediction(
                     x_batch, method=config.diffusion.conditioning_signal
+                )
+                cond_pred_y_list.append(
+                    dataset_object.scaler_y.inverse_transform(y_0_hat_batch.detach().cpu().numpy())
                 )
                 true_y_by_batch_list.append(y_batch.cpu().numpy())
                 if config.testing.make_plot and config.data.dataset not in ("uci", "renewable"):
@@ -942,7 +957,7 @@ class Diffusion(object):
                     )
                     true_x_tile_by_batch_list.append(x_repeated.cpu().numpy())
                 # generate samples from all time steps for the current mini-batch
-                minibatch_sample_start = time.time()
+                # minibatch_sample_start = time.time()
                 y_tile_seq = p_sample_loop(
                     model,
                     x_tile,
@@ -952,12 +967,12 @@ class Diffusion(object):
                     self.alphas,
                     self.one_minus_alphas_bar_sqrt,
                 )
-                minibatch_sample_end = time.time()
-                logging.info(
-                    "Minibatch {} sampling took {:.4f} seconds.".format(
-                        step, (minibatch_sample_end - minibatch_sample_start)
-                    )
-                )
+                # minibatch_sample_end = time.time()
+                # logging.info(
+                #     "Minibatch {} sampling took {:.4f} seconds.".format(
+                #         step, (minibatch_sample_end - minibatch_sample_start)
+                #     )
+                # )
                 # obtain generated y and compute squared error at all time steps or a particular time step
                 if config.testing.compute_metric_all_steps:
                     for idx in range(self.num_timesteps + 1):
@@ -1048,6 +1063,8 @@ class Diffusion(object):
                     )
                     plt.close("all")
 
+        np.save(os.path.join(log_path, "y_pred_nn.npy"), np.vstack(cond_pred_y_list))
+
         ################## compute metrics on test set ##################
         all_true_y = np.concatenate(true_y_by_batch_list, axis=0)
         if config.testing.make_plot and config.data.dataset not in ("uci", "renewable"):
@@ -1076,19 +1093,34 @@ class Diffusion(object):
                     all_generated_y=all_gen_y,
                     verbose=False,
                 )
+                if config.data.normalize_y:
+                    all_gen_y_normalized = (
+                        dataset_object.scaler_y.inverse_transform(all_gen_y.copy().reshape(-1, 1))
+                        .reshape(all_gen_y.shape)
+                        .astype(np.float32)
+                    )
+                    all_true_y_normalized = dataset_object.scaler_y.inverse_transform(
+                        all_true_y.copy()
+                    ).astype(np.float32)
+
                 y_qice_all_steps_list.append(qice_coverage_ratio)
                 # compute CRPS
-                crps = compute_CRPS(all_true_y, all_gen_y, dataset_object.scaler_y)
+                crps = compute_CRPS(all_true_y_normalized, all_gen_y_normalized)
                 y_crps_all_steps_list.append(crps)
                 # compute PICP
                 coverage, _, _ = compute_PICP(config=config, y_true=y_true, all_gen_y=all_gen_y)
                 y_picp_all_steps_list.append(coverage)
                 # compute Pinball loss
-                pinball_loss = compute_pinball_loss(config, all_true_y, all_gen_y, dataset_object.scaler_y)
+                pinball_loss = compute_pinball_loss(config, all_true_y_normalized, all_gen_y_normalized)
                 y_pinball_all_steps_list.append(pinball_loss)
                 # compute NLL
                 y_nll = np.mean(nll_by_batch_list[current_t])
                 y_nll_all_steps_list.append(y_nll)
+
+                if idx == self.num_timesteps:
+                    np.save(os.path.join(args.log_path, "y_true.npy"), all_true_y_normalized)
+                    np.save(os.path.join(args.log_path, "y_pred.npy"), all_gen_y_normalized)
+
             # make plot for metrics across all timesteps during reverse diffusion
             n_metrics = 6
             fig, axs = plt.subplots(n_metrics, 1, figsize=(8.5, n_metrics * 3), clear=True)  # W x H
@@ -1182,12 +1214,19 @@ class Diffusion(object):
             y_nll_all_steps_list.append(y_nll)
             logging.info("\nNegative Log-Likelihood on test set is {:.8f}.".format(y_nll))
 
-        logging.info(f"y RMSE at all steps: {y_rmse_all_steps_list}.\n\n")
-        logging.info(f"y QICE at all steps: {y_qice_all_steps_list}.\n\n")
-        logging.info(f"y CRPS at all steps: {y_crps_all_steps_list}.\n\n")
-        logging.info(f"y PICP at all steps: {y_picp_all_steps_list}.\n\n")
-        logging.info(f"y Pinball at all steps: {y_pinball_all_steps_list}.\n\n")
-        logging.info(f"y NLL at all steps: {y_nll_all_steps_list}.\n\n")
+        logging.debug(f"y RMSE at all steps: {y_rmse_all_steps_list}.\n\n")
+        logging.debug(f"y QICE at all steps: {y_qice_all_steps_list}.\n\n")
+        logging.debug(f"y CRPS at all steps: {y_crps_all_steps_list}.\n\n")
+        logging.debug(f"y PICP at all steps: {y_picp_all_steps_list}.\n\n")
+        logging.debug(f"y Pinball at all steps: {y_pinball_all_steps_list}.\n\n")
+        logging.debug(f"y NLL at all steps: {y_nll_all_steps_list}.\n\n")
+
+        logging.info(f"y RMSE at last step: {y_rmse_all_steps_list[-1]}.")
+        logging.info(f"y QICE at last step: {y_qice_all_steps_list[-1]}.")
+        logging.info(f"y CRPS at last step: {y_crps_all_steps_list[-1]}.")
+        logging.info(f"y PICP at last step: {y_picp_all_steps_list[-1]}.")
+        logging.info(f"y Pinball at last step: {y_pinball_all_steps_list[-1]}.")
+        logging.info(f"y NLL at last step: {y_nll_all_steps_list[-1]}.")
 
         # make plots for true vs. generated distribution comparison
         if config.testing.make_plot:

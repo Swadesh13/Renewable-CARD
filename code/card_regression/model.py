@@ -25,17 +25,24 @@ class ConditionalGuidedModel(nn.Module):
         self.cat_x = config.model.cat_x
         self.cat_y_pred = config.model.cat_y_pred
         data_dim = config.model.y_dim
+        self.window_size = config.data.window_size
+        self.dim_x = config.model.x_dim
+        self.dim_per_window = int(config.model.x_dim / config.data.window_size)
         if self.cat_x:
             data_dim += config.model.x_dim
+            # self.lstm = nn.LSTM(self.dim_per_window, self.dim_per_window, 2, batch_first=True)
         if self.cat_y_pred:
             data_dim += config.model.y_dim
         self.lin1 = ConditionalLinear(data_dim, config.model.feature_dim, n_steps)
         self.lin2 = ConditionalLinear(config.model.feature_dim, config.model.feature_dim, n_steps)
-        # self.lin3 = ConditionalLinear(config.model.feature_dim, config.model.feature_dim, n_steps)
+        self.lin3 = ConditionalLinear(config.model.feature_dim, config.model.feature_dim, n_steps)
+        # self.lin3_ = nn.Linear(config.model.feature_dim, config.model.feature_dim)
         self.lin4 = nn.Linear(config.model.feature_dim, 1)
 
     def forward(self, x, y_t, y_0_hat, t):
         if self.cat_x:
+            # x, _ = self.lstm(x.reshape(-1, self.window_size, self.dim_per_window))
+            # x = x.reshape(-1, self.dim_x)
             if self.cat_y_pred:
                 eps_pred = torch.cat((y_t, y_0_hat, x), dim=1)
             else:
@@ -47,7 +54,8 @@ class ConditionalGuidedModel(nn.Module):
                 eps_pred = y_t
         eps_pred = F.softplus(self.lin1(eps_pred, t))
         eps_pred = F.softplus(self.lin2(eps_pred, t))
-        # eps_pred = F.softplus(self.lin3(eps_pred, t))
+        eps_pred = F.softplus(self.lin3(eps_pred, t))
+        # eps_pred = F.softplus(self.lin3_(eps_pred))
         return self.lin4(eps_pred)
 
 
@@ -62,10 +70,14 @@ class DeterministicFeedForwardNeuralNetwork(nn.Module):
         use_layernorm=False,
         negative_slope=0.01,
         dropout_rate=0,
+        window_size=5,
+        lstm=True,
     ):
         super(DeterministicFeedForwardNeuralNetwork, self).__init__()
         self.dim_in = dim_in  # dimension of nn input
         self.dim_out = dim_out  # dimension of nn output
+        self.window_size = window_size
+        self.dim_per_window = int(dim_in / self.window_size)
         self.hid_layers = hid_layers  # nn hidden layer architecture
         self.nn_layers = [self.dim_in] + self.hid_layers  # nn hidden layer architecture, except output layer
         self.use_batchnorm = use_batchnorm  # whether apply batch norm
@@ -74,6 +86,9 @@ class DeterministicFeedForwardNeuralNetwork(nn.Module):
         self.dropout_rate = dropout_rate
         layers = self.create_nn_layers()
         self.network = nn.Sequential(*layers)
+        self.lstm = lstm
+        if self.lstm:
+            self.lstm = nn.LSTM(self.dim_per_window, self.dim_per_window, 2, batch_first=True)
 
     def create_nn_layers(self):
         layers = []
@@ -89,6 +104,9 @@ class DeterministicFeedForwardNeuralNetwork(nn.Module):
         return layers
 
     def forward(self, x):
+        if self.lstm:
+            x, _ = self.lstm(x.reshape(-1, self.window_size, self.dim_per_window))
+            x = x.reshape(-1, self.dim_in)
         return self.network(x)
 
 

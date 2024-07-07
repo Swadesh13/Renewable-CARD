@@ -23,7 +23,7 @@ def parse_args():
     parser.add_argument("--config", type=str, required=True, help="Path to the config file")
     parser.add_argument("--device", type=int, default=0, help="GPU device id")
     parser.add_argument("--thread", type=int, default=4, help="number of threads")
-    parser.add_argument("--seed", type=int, default=1234, help="Random seed")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--exp", type=str, default="exp", help="Path for saving running related data.")
     parser.add_argument(
         "--doc",
@@ -75,7 +75,7 @@ def parse_args():
         help="The folder name of samples",
     )
     parser.add_argument(
-        "--n_splits", type=int, default=20, help="total number of splits for a specific regression task"
+        "--n_splits", type=int, default=1, help="total number of splits for a specific regression task"
     )
     parser.add_argument("--split", type=int, default=0, help="which split to use for regression data")
     parser.add_argument(
@@ -129,7 +129,7 @@ def parse_args():
     )
     parser.add_argument("--sequence", action="store_true")
     # loss option
-    parser.add_argument("--loss", type=str, default="ddpm", help="Which loss to use")
+    parser.add_argument("--loss", type=str, default="card_conditional", help="Which loss to use")
     parser.add_argument(
         "--nll_global_var", action="store_true", help="Apply global variance for NLL computation"
     )
@@ -153,6 +153,8 @@ def parse_args():
         "--num_sample", type=int, default=1, help="number of samples used in forward and reverse"
     )
     args = parser.parse_args()
+    if not args.test:
+        args.exp = os.path.join("results", str(int(time.time())))
     return args
 
 
@@ -258,9 +260,6 @@ def parse_config(args):
         print("Using {} threads".format(args.thread))
 
     # set random seed
-    if args.run_all:
-        if new_config.data.dataset != "uci":
-            args.seed += 1  # apply a different seed for each run of toy example
     set_random_seed(args.seed)
 
     torch.backends.cudnn.benchmark = True

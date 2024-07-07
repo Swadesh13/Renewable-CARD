@@ -165,7 +165,7 @@ def get_dataset(args, config, test_set=False, validation=False):
         logging.info(data_object.summary_dataset(split=data_type))
         data = data_object.return_dataset(split=data_type)
     elif config.data.dataset == "renewable":
-        data_object = Renewable(config, validation, config.data.type)
+        data_object = Renewable(config, validation)
         data_type = "test" if test_set else "train"
         logging.info(data_object.summary_dataset(data_type))
         data = data_object.return_dataset(data_type)
