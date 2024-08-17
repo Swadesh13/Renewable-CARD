@@ -30,19 +30,15 @@ class ConditionalGuidedModel(nn.Module):
         self.dim_per_window = int(config.model.x_dim / config.data.window_size)
         if self.cat_x:
             data_dim += config.model.x_dim
-            # self.lstm = nn.LSTM(self.dim_per_window, self.dim_per_window, 2, batch_first=True)
         if self.cat_y_pred:
             data_dim += config.model.y_dim
         self.lin1 = ConditionalLinear(data_dim, config.model.feature_dim, n_steps)
         self.lin2 = ConditionalLinear(config.model.feature_dim, config.model.feature_dim, n_steps)
         self.lin3 = ConditionalLinear(config.model.feature_dim, config.model.feature_dim, n_steps)
-        # self.lin3_ = nn.Linear(config.model.feature_dim, config.model.feature_dim)
         self.lin4 = nn.Linear(config.model.feature_dim, 1)
 
     def forward(self, x, y_t, y_0_hat, t):
         if self.cat_x:
-            # x, _ = self.lstm(x.reshape(-1, self.window_size, self.dim_per_window))
-            # x = x.reshape(-1, self.dim_x)
             if self.cat_y_pred:
                 eps_pred = torch.cat((y_t, y_0_hat, x), dim=1)
             else:
@@ -88,7 +84,7 @@ class DeterministicFeedForwardNeuralNetwork(nn.Module):
         self.network = nn.Sequential(*layers)
         self.lstm = lstm
         if self.lstm:
-            self.lstm = nn.LSTM(self.dim_per_window, self.dim_per_window, 2, batch_first=True)
+            self.lstm = nn.LSTM(self.dim_per_window, self.dim_per_window, 2, batch_first=True, dropout=0.1)
 
     def create_nn_layers(self):
         layers = []

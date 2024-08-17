@@ -2,7 +2,7 @@ data:
     dataset: "renewable"
     type: "wind"
     dir: "data"
-    window_size: 7
+    window_size: 5
     reduce_1d: True
     add_prev: True
     n_splits: 1
@@ -31,7 +31,7 @@ diffusion:
     conditioning_signal: "NN"
     nonlinear_guidance:
         pre_train: True
-        joint_train: True
+        joint_train: False
         n_pretrain_epochs: 400
         logging_interval: 10
         hid_layers: [1024, 1024]

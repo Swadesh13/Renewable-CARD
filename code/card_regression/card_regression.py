@@ -102,7 +102,7 @@ class Diffusion(object):
                 dropout_rate=config.diffusion.nonlinear_guidance.dropout_rate,
                 window_size=config.data.window_size,
             ).to(self.device)
-            self.aux_cost_function = nn.MSELoss()  # nn.L1Loss()  # nn.MSELoss()
+            self.aux_cost_function = nn.L1Loss()  # nn.L1Loss()  # nn.MSELoss()
         else:
             pass
 
@@ -398,7 +398,7 @@ class Diffusion(object):
 
             if config.diffusion.noise_prior:  # apply 0 instead of f_phi(x) as prior mean
                 logging.info("Prior distribution at timestep T has a mean of 0.")
-            scheduler = torch.optim.lr_scheduler.MultiStepLR(aux_optimizer, [700, 900], 0.1)
+            # scheduler = torch.optim.lr_scheduler.MultiStepLR(aux_optimizer, [700, 900], 0.1)
             for epoch in range(start_epoch, self.config.training.n_epochs):
                 data_start = time.time()
                 data_time = 0
@@ -556,7 +556,7 @@ class Diffusion(object):
                         # self.cond_pred_model.train()
 
                     data_start = time.time()
-                    scheduler.step()
+                    # scheduler.step()
             plt.close("all")
             # save the model after training is finished
             states = [
@@ -654,33 +654,6 @@ class Diffusion(object):
             ), "Sum of quantile coverage ratios shall be 1!"
             qice_coverage_ratio = np.absolute(np.ones(n_bins) / n_bins - y_true_ratio_by_bin).mean()
             return y_true_ratio_by_bin, qice_coverage_ratio, y_true
-
-        def compute_CRPS(all_true_y, all_generated_y):
-            y_pred = all_generated_y.squeeze().T
-            y_true = all_true_y.squeeze()
-            num_samples = y_pred.shape[0]
-            absolute_error = np.mean(np.abs(y_pred - y_true), axis=0)
-            y_pred = np.sort(y_pred, axis=0)
-            diff = y_pred[1:] - y_pred[:-1]
-            weight = np.arange(1, num_samples) * np.arange(num_samples - 1, 0, -1)
-            weight = np.expand_dims(weight, -1)
-            per_obs_crps = absolute_error - np.sum(diff * weight, axis=0) / num_samples**2
-            return np.average(per_obs_crps)
-
-        def compute_pinball_loss(config, y_true, all_gen_y, quantile_list=None):
-            low, high = config.testing.trimmed_mean_range
-            if low == 50 and high == 50:
-                y_pred_mean = np.median(all_gen_y, axis=1)  # use median of samples as the mean prediction
-            else:  # compute trimmed mean (i.e. discarding certain parts of the samples at both ends)
-                all_gen_y.sort(axis=1)
-                low_idx = int(low / 100 * config.testing.n_z_samples)
-                high_idx = int(high / 100 * config.testing.n_z_samples)
-                y_pred_mean = (all_gen_y[:, low_idx:high_idx]).mean(axis=1)
-
-            quantile_list = np.expand_dims(np.array(quantile_list or np.arange(0.1, 1, 0.1)), 0)
-            loss = y_true - y_pred_mean
-            loss = np.maximum(quantile_list * loss, (quantile_list - 1) * loss)
-            return np.mean(loss)
 
         def compute_PICP(config, y_true, all_gen_y, return_CI=False):
             """
@@ -892,7 +865,7 @@ class Diffusion(object):
             plt.close("all")
 
         if config.testing.compute_metric_all_steps:
-            logging.info("\nWe compute RMSE, QICE, CRPS, PICP, Pinball and NLL for all steps.\n")
+            logging.info("\nWe compute RMSE, QICE, PICP and NLL for all steps.\n")
         else:
             mean_idx = self.num_timesteps - config.testing.mean_t
             coverage_idx = self.num_timesteps - config.testing.coverage_t
@@ -900,7 +873,7 @@ class Diffusion(object):
             logging.info(
                 (
                     "\nWe pick t={} to compute y mean metric RMSE, "
-                    + "and t={} to compute true y coverage metric QICE, CRPS, PICP and Pinball.\n"
+                    + "and t={} to compute true y coverage metric QICE and PICP.\n"
                 ).format(config.testing.mean_t, config.testing.coverage_t)
             )
 
@@ -1073,9 +1046,7 @@ class Diffusion(object):
             all_true_x_tile = np.concatenate(true_x_tile_by_batch_list, axis=0)
         y_rmse_all_steps_list = []
         y_qice_all_steps_list = []
-        y_crps_all_steps_list = []
         y_picp_all_steps_list = []
-        y_pinball_all_steps_list = []
         y_nll_all_steps_list = []
 
         if config.testing.compute_metric_all_steps:
@@ -1104,15 +1075,9 @@ class Diffusion(object):
                     ).astype(np.float32)
 
                 y_qice_all_steps_list.append(qice_coverage_ratio)
-                # compute CRPS
-                crps = compute_CRPS(all_true_y_normalized, all_gen_y_normalized)
-                y_crps_all_steps_list.append(crps)
                 # compute PICP
                 coverage, _, _ = compute_PICP(config=config, y_true=y_true, all_gen_y=all_gen_y)
                 y_picp_all_steps_list.append(coverage)
-                # compute Pinball loss
-                pinball_loss = compute_pinball_loss(config, all_true_y_normalized, all_gen_y_normalized)
-                y_pinball_all_steps_list.append(pinball_loss)
                 # compute NLL
                 y_nll = np.mean(nll_by_batch_list[current_t])
                 y_nll_all_steps_list.append(y_nll)
@@ -1122,7 +1087,7 @@ class Diffusion(object):
                     np.save(os.path.join(args.log_path, "y_pred.npy"), all_gen_y_normalized)
 
             # make plot for metrics across all timesteps during reverse diffusion
-            n_metrics = 6
+            n_metrics = 4
             fig, axs = plt.subplots(n_metrics, 1, figsize=(8.5, n_metrics * 3), clear=True)  # W x H
             plt.subplots_adjust(hspace=0.5)
             xticks = np.arange(0, self.num_timesteps + 1, config.diffusion.vis_step)
@@ -1156,20 +1121,6 @@ class Diffusion(object):
             axs[3].set_xticks(xticks)
             axs[3].set_xticklabels(xticks[::-1])
             axs[3].set_ylabel("y NLL", fontsize=12)
-            # CRPS
-            axs[4].plot(y_crps_all_steps_list)
-            # axs[1].set_title('y CRPS across All Timesteps', fontsize=18)
-            axs[4].set_xlabel("timestep", fontsize=12)
-            axs[4].set_xticks(xticks)
-            axs[4].set_xticklabels(xticks[::-1])
-            axs[4].set_ylabel("y CRPS", fontsize=12)
-            # Pinball
-            axs[5].plot(y_crps_all_steps_list)
-            # axs[1].set_title('y Pinball across All Timesteps', fontsize=18)
-            axs[5].set_xlabel("timestep", fontsize=12)
-            axs[5].set_xticks(xticks)
-            axs[5].set_xticklabels(xticks[::-1])
-            axs[5].set_ylabel("y Pinball", fontsize=12)
             # fig.suptitle('y Metrics across All Timesteps')
             fig.savefig(os.path.join(args.im_path, "metrics_all_timesteps.pdf"))
         else:
@@ -1194,9 +1145,6 @@ class Diffusion(object):
                     + "quantile interval and optimal ratio is {:.8f}."
                 ).format(y_rmse, qice_coverage_ratio)
             )
-            # compute CRPS
-            crps = compute_CRPS(all_true_y, all_gen_y, dataset_object.scaler_y)
-            y_crps_all_steps_list.append(crps)
             # compute PICP -- another coverage metric
             coverage, low, high = compute_PICP(config=config, y_true=y_true, all_gen_y=all_gen_y)
             y_picp_all_steps_list.append(coverage)
@@ -1206,9 +1154,6 @@ class Diffusion(object):
                     + "the computed {:.0f}% credible interval."
                 ).format(100 * coverage, high - low)
             )
-            # compute Pinball loss
-            pinball_loss = compute_pinball_loss(config, y_true, all_gen_y, dataset_object.scaler_y)
-            y_pinball_all_steps_list.append(pinball_loss)
             # compute NLL
             y_nll = np.mean(nll_by_batch_list[config.testing.nll_t])
             y_nll_all_steps_list.append(y_nll)
@@ -1216,16 +1161,12 @@ class Diffusion(object):
 
         logging.debug(f"y RMSE at all steps: {y_rmse_all_steps_list}.\n\n")
         logging.debug(f"y QICE at all steps: {y_qice_all_steps_list}.\n\n")
-        logging.debug(f"y CRPS at all steps: {y_crps_all_steps_list}.\n\n")
         logging.debug(f"y PICP at all steps: {y_picp_all_steps_list}.\n\n")
-        logging.debug(f"y Pinball at all steps: {y_pinball_all_steps_list}.\n\n")
         logging.debug(f"y NLL at all steps: {y_nll_all_steps_list}.\n\n")
 
         logging.info(f"y RMSE at last step: {y_rmse_all_steps_list[-1]}.")
         logging.info(f"y QICE at last step: {y_qice_all_steps_list[-1]}.")
-        logging.info(f"y CRPS at last step: {y_crps_all_steps_list[-1]}.")
         logging.info(f"y PICP at last step: {y_picp_all_steps_list[-1]}.")
-        logging.info(f"y Pinball at last step: {y_pinball_all_steps_list[-1]}.")
         logging.info(f"y NLL at last step: {y_nll_all_steps_list[-1]}.")
 
         # make plots for true vs. generated distribution comparison
@@ -1246,9 +1187,6 @@ class Diffusion(object):
                     + "quantile interval and optimal ratio is {:.8f}."
                 ).format(qice_coverage_ratio)
             )
-            # compute CRPS
-            crps = compute_CRPS(all_true_y, all_gen_y, dataset_object.scaler_y)
-            y_crps_all_steps_list.append(crps)
             # compute PICP and RMSE
             if config.data.no_multimodality:
                 if not config.data.inverse_xy:
@@ -1263,9 +1201,6 @@ class Diffusion(object):
                 generated_y=all_gen_y,
                 return_pred_mean=True,
             )
-            # compute Pinball loss
-            pinball_loss = compute_pinball_loss(config, y_true, all_gen_y, dataset_object.scaler_y)
-            y_pinball_all_steps_list.append(pinball_loss)
 
             # create plot
             logging.info("\nNow we start making the plot...")
@@ -1493,8 +1428,6 @@ class Diffusion(object):
         return (
             y_rmse_all_steps_list,
             y_qice_all_steps_list,
-            y_crps_all_steps_list,
             y_picp_all_steps_list,
-            y_pinball_all_steps_list,
             y_nll_all_steps_list,
         )

@@ -91,13 +91,7 @@ def parse_args():
         "--qice_timestep", type=int, default=0, help="selected timestep to report metric y QICE"
     )
     parser.add_argument(
-        "--crps_timestep", type=int, default=0, help="selected timestep to report metric y CRPS"
-    )
-    parser.add_argument(
         "--picp_timestep", type=int, default=0, help="selected timestep to report metric y PICP"
-    )
-    parser.add_argument(
-        "--pinball_timestep", type=int, default=0, help="selected timestep to report metric y Pinball"
     )
     parser.add_argument(
         "--nll_timestep", type=int, default=0, help="selected timestep to report metric y NLL"
@@ -290,9 +284,7 @@ def main(args):
             (
                 y_rmse_all_steps_list,
                 y_qice_all_steps_list,
-                y_crps_all_steps_list,
                 y_picp_all_steps_list,
-                y_pinball_all_steps_list,
                 y_nll_all_steps_list,
             ) = runner.test()
             procedure = "Testing"
@@ -315,9 +307,7 @@ def main(args):
             return (
                 y_rmse_all_steps_list,
                 y_qice_all_steps_list,
-                y_crps_all_steps_list,
                 y_picp_all_steps_list,
-                y_pinball_all_steps_list,
                 y_nll_all_steps_list,
                 config,
             )
@@ -331,11 +321,9 @@ if __name__ == "__main__":
         (
             y_rmse_all_splits_all_steps_list,
             y_qice_all_splits_all_steps_list,
-            y_crps_all_splits_all_steps_list,
             y_picp_all_splits_all_steps_list,
-            y_pinball_all_splits_all_steps_list,
             y_nll_all_splits_all_steps_list,
-        ) = ([], [], [], [], [], [])
+        ) = ([], [], [], [])
         original_doc = args.doc
         original_config = args.config
         for split in range(args.init_split, args.n_splits):
@@ -348,17 +336,13 @@ if __name__ == "__main__":
                 (
                     y_rmse_all_steps_list,
                     y_qice_all_steps_list,
-                    y_crps_all_steps_list,
                     y_picp_all_steps_list,
-                    y_pinball_all_steps_list,
                     y_nll_all_steps_list,
                     config,
                 ) = main(args)
                 y_rmse_all_splits_all_steps_list.append(y_rmse_all_steps_list)
                 y_qice_all_splits_all_steps_list.append(y_qice_all_steps_list)
-                y_crps_all_splits_all_steps_list.append(y_crps_all_steps_list)
                 y_picp_all_splits_all_steps_list.append(y_picp_all_steps_list)
-                y_pinball_all_splits_all_steps_list.append(y_pinball_all_steps_list)
                 y_nll_all_splits_all_steps_list.append(y_nll_all_steps_list)
             else:
                 main(args)
@@ -368,9 +352,7 @@ if __name__ == "__main__":
             n_timesteps = config.diffusion.timesteps
             rmse_idx = n_timesteps - args.rmse_timestep
             qice_idx = n_timesteps - args.qice_timestep
-            crps_idx = n_timesteps - args.crps_timestep
             picp_idx = n_timesteps - args.picp_timestep
-            pinball_idx = n_timesteps - args.pinball_timestep
             nll_idx = n_timesteps - args.nll_timestep
             y_rmse_all_splits_list = [
                 metric_list[rmse_idx] for metric_list in y_rmse_all_splits_all_steps_list
@@ -378,14 +360,8 @@ if __name__ == "__main__":
             y_qice_all_splits_list = [
                 metric_list[qice_idx] for metric_list in y_qice_all_splits_all_steps_list
             ]
-            y_crps_all_splits_list = [
-                metric_list[crps_idx] for metric_list in y_crps_all_splits_all_steps_list
-            ]
             y_picp_all_splits_list = [
                 metric_list[picp_idx] for metric_list in y_picp_all_splits_all_steps_list
-            ]
-            y_pinball_all_splits_list = [
-                metric_list[pinball_idx] for metric_list in y_pinball_all_splits_all_steps_list
             ]
             y_nll_all_splits_list = [metric_list[nll_idx] for metric_list in y_nll_all_splits_all_steps_list]
 
@@ -394,19 +370,13 @@ if __name__ == "__main__":
                 f"y_RMSE mean: {np.mean(y_rmse_all_splits_list)} y_RMSE std: {np.std(y_rmse_all_splits_list)}"
             )
             print(f"QICE mean: {np.mean(y_qice_all_splits_list)} QICE std: {np.std(y_qice_all_splits_list)}")
-            print(f"CRPS mean: {np.mean(y_crps_all_splits_list)} CRPS std: {np.std(y_crps_all_splits_list)}")
             print(f"PICP mean: {np.mean(y_picp_all_splits_list)} PICP std: {np.std(y_picp_all_splits_list)}")
-            print(
-                f"Pinball mean: {np.mean(y_pinball_all_splits_list)} Pinball std: {np.std(y_pinball_all_splits_list)}"
-            )
             print(f"NLL mean: {np.mean(y_nll_all_splits_list)} NLL std: {np.std(y_nll_all_splits_list)}")
 
             # plot mean of all metric across all splits at all time steps during reverse diffusion
             y_rmse_all_splits_all_steps_array = np.array(y_rmse_all_splits_all_steps_list)
             y_qice_all_splits_all_steps_array = np.array(y_qice_all_splits_all_steps_list)
-            y_crps_all_splits_all_steps_array = np.array(y_crps_all_splits_all_steps_list)
             y_picp_all_splits_all_steps_array = np.array(y_picp_all_splits_all_steps_list)
-            y_pinball_all_splits_all_steps_array = np.array(y_pinball_all_splits_all_steps_list)
             y_nll_all_splits_all_steps_array = np.array(y_nll_all_splits_all_steps_list)
             y_rmse_mean_all_splits_list = [
                 np.mean(y_rmse_all_splits_all_steps_array[:, idx]) for idx in range(n_timesteps + 1)
@@ -414,19 +384,13 @@ if __name__ == "__main__":
             y_qice_mean_all_splits_list = [
                 np.mean(y_qice_all_splits_all_steps_array[:, idx]) for idx in range(n_timesteps + 1)
             ]
-            y_crps_mean_all_splits_list = [
-                np.mean(y_crps_all_splits_all_steps_array[:, idx]) for idx in range(n_timesteps + 1)
-            ]
             y_picp_mean_all_splits_list = [
                 np.mean(y_picp_all_splits_all_steps_array[:, idx]) for idx in range(n_timesteps + 1)
-            ]
-            y_pinball_mean_all_splits_list = [
-                np.mean(y_pinball_all_splits_all_steps_array[:, idx]) for idx in range(n_timesteps + 1)
             ]
             y_nll_mean_all_splits_list = [
                 np.mean(y_nll_all_splits_all_steps_array[:, idx]) for idx in range(n_timesteps + 1)
             ]
-            n_metric = 6
+            n_metric = 4
             fig, axs = plt.subplots(n_metric, 1, figsize=(8.5, n_metric * 3))  # W x H
             plt.subplots_adjust(hspace=0.5)
             xticks = np.arange(0, n_timesteps + 1, config.diffusion.vis_step)
@@ -461,20 +425,6 @@ if __name__ == "__main__":
             axs[3].set_xticklabels(xticks[::-1])
             axs[3].set_ylabel("y PICP", fontsize=12)
             axs[3].legend()
-            # CRPS
-            axs[4].plot(y_crps_mean_all_splits_list)
-            # axs[1].set_title('mean y CRPS of All Splits across All Timesteps', fontsize=14)
-            axs[4].set_xlabel("timestep", fontsize=12)
-            axs[4].set_xticks(xticks)
-            axs[4].set_xticklabels(xticks[::-1])
-            axs[4].set_ylabel("y CRPS", fontsize=12)
-            # Pinball
-            axs[5].plot(y_pinball_mean_all_splits_list)
-            # axs[1].set_title('mean y Pinball of All Splits across All Timesteps', fontsize=14)
-            axs[5].set_xlabel("timestep", fontsize=12)
-            axs[5].set_xticks(xticks)
-            axs[5].set_xticklabels(xticks[::-1])
-            axs[5].set_ylabel("y Pinball", fontsize=12)
 
             # fig.suptitle('Mean y Metrics of All Splits across All Timesteps')
             im_path = os.path.join(args.exp, config.testing.image_folder, original_doc)
@@ -493,14 +443,10 @@ if __name__ == "__main__":
                 "y_RMSE std": float(np.std(y_rmse_all_splits_list)),
                 "QICE mean": float(np.mean(y_qice_all_splits_list)),
                 "QICE std": float(np.std(y_qice_all_splits_list)),
-                "CRPS mean": float(np.mean(y_crps_all_splits_list)),
-                "CRPS std": float(np.std(y_crps_all_splits_list)),
                 "PICP mean": float(np.mean(y_picp_all_splits_list)),
                 "PICP std": float(np.std(y_picp_all_splits_list)),
                 "NLL mean": float(np.mean(y_nll_all_splits_list)),
                 "NLL std": float(np.std(y_nll_all_splits_list)),
-                "Pinball mean": float(np.mean(y_pinball_all_splits_list)),
-                "Pinball std": float(np.std(y_pinball_all_splits_list)),
             }
             args_dict = {
                 "task": config.data.dataset,

@@ -212,16 +212,9 @@ class Renewable(object):
             y_test_data = y_data[(365 * 2 + 366) * 24 :][:, None]
         y_data = y_data[: (365 * 2 + 366) * 24][:, None]
 
-        # avg = torch.nn.AvgPool2d((3, 3), 2)
-        # x_data_ = torch.tensor(x_data.copy()).permute((0, 3, 1, 2))
-        # x_data = avg(x_data_).permute((0, 2, 3, 1)).numpy()
-        # if not validation:
-        #     x_test_data_ = torch.tensor(x_test_data.copy()).permute((0, 3, 1, 2))
-        #     x_test_data = avg(x_test_data_).permute((0, 2, 3, 1)).numpy()
-
-        x_data_ = x_data.mean(2).reshape(x_data.shape[0], -1)
+        x_data_ = x_data.mean(1).reshape(x_data.shape[0], -1)
         if not validation:
-            x_test_data_ = x_test_data.mean(2).reshape(x_test_data.shape[0], -1)
+            x_test_data_ = x_test_data.mean(1).reshape(x_test_data.shape[0], -1)
 
         self.normalize_x = config.data.normalize_x
         self.normalize_y = config.data.normalize_y
@@ -255,14 +248,14 @@ class Renewable(object):
 
         ws = config.data.window_size
         if config.data.hour_24:
-            ws = ws * (24 - 1) + 1
+            ws = ws + 24 - 1
             x_data_ = copy.deepcopy(np.lib.stride_tricks.sliding_window_view(x_data_, ws, 0).swapaxes(1, 2))[
-                :, ::24
+                :, [*list(range(ws - 24)), -1]
             ]
             if not validation:
                 x_test_data_ = copy.deepcopy(
                     np.lib.stride_tricks.sliding_window_view(x_test_data_, ws, 0).swapaxes(1, 2)
-                )[:, ::24]
+                )[:, [*list(range(ws - 24)), -1]]
         else:
             x_data_ = copy.deepcopy(np.lib.stride_tricks.sliding_window_view(x_data_, ws, 0).swapaxes(1, 2))
             if not validation:
@@ -307,38 +300,13 @@ class Renewable(object):
         self.test_dim_x = self.x_test.shape[1]  # dimension of testing data input
         self.test_dim_y = self.y_test.shape[1]  # dimension of testing regression output
 
-        # self.normalize_x = config.data.normalize_x
-        # self.normalize_y = config.data.normalize_y
-        # self.scaler_x, self.scaler_y = None, None
-
-        # if self.normalize_x:
-        #     self.normalize_train_test_x()
-        # if self.normalize_y:
-        #     self.normalize_train_test_y()
-
         if config.data.add_prev:
             self.x_train[:, -1] = 0
             self.x_test[:, -1] = 0
 
-    def normalize_train_test_x(self):
-        """
-        When self.dim_cat > 0, we have one-hot encoded number of categorical variables,
-            on which we don't conduct standardization. They are arranged as the last
-            columns of the feature set.
-        """
-        self.scaler_x = StandardScaler(with_mean=True, with_std=True)
-        self.x_train = torch.from_numpy(self.scaler_x.fit_transform(self.x_train).astype(np.float32))
-        self.x_test = torch.from_numpy(self.scaler_x.transform(self.x_test).astype(np.float32))
-
-    def normalize_train_test_y(self):
-        self.scaler_y = StandardScaler(with_mean=True, with_std=True)
-        self.y_train = torch.from_numpy(self.scaler_y.fit_transform(self.y_train).astype(np.float32))
-        self.y_test = torch.from_numpy(self.scaler_y.transform(self.y_test).astype(np.float32))
-
     def normalize_x_(self, x, fit=False):
         if fit:
             self.scaler_x = StandardScaler(with_mean=True, with_std=True)
-            # self.scaler_x = MinMaxScaler()
             x = self.scaler_x.fit_transform(x).astype(np.float32)
         else:
             x = self.scaler_x.transform(x).astype(np.float32)
@@ -347,7 +315,6 @@ class Renewable(object):
     def normalize_y_(self, y, fit=False):
         if fit:
             self.scaler_y = StandardScaler(with_mean=True, with_std=True)
-            # self.scaler_y = MinMaxScaler()
             y = self.scaler_y.fit_transform(y).astype(np.float32)
         else:
             y = self.scaler_y.transform(y).astype(np.float32)

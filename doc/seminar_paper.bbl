@@ -1,0 +1,461 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.1 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated as
+% required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+\datalist[entry]{nyt/global//global/global}
+  \entry{9209858}{inproceedings}{}
+    \name{author}{4}{}{%
+      {{hash=BK}{%
+         family={Bellinguer},
+         familyi={B\bibinitperiod},
+         given={Kevin},
+         giveni={K\bibinitperiod},
+      }}%
+      {{hash=GR}{%
+         family={Girard},
+         familyi={G\bibinitperiod},
+         given={Robin},
+         giveni={R\bibinitperiod},
+      }}%
+      {{hash=BG}{%
+         family={Bontron},
+         familyi={B\bibinitperiod},
+         given={Guillaume},
+         giveni={G\bibinitperiod},
+      }}%
+      {{hash=KG}{%
+         family={Kariniotakis},
+         familyi={K\bibinitperiod},
+         given={Georges},
+         giveni={G\bibinitperiod},
+      }}%
+    }
+    \keyw{Production;Forecasting;Predictive models;Satellites;Wind
+  forecasting;Short-term solar power forecasting;analog approach;conditional
+  forecast;spatio-temporal;auto-regressive processes;smart grid}
+    \strng{namehash}{BK+1}
+    \strng{fullhash}{BKGRBGKG1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{labelyear}{2020}
+    \field{labeldatesource}{}
+    \field{sortinit}{B}
+    \field{sortinithash}{B}
+    \field{booktitle}{2020 55th International Universities Power Engineering
+  Conference (UPEC)}
+    \verb{doi}
+    \verb 10.1109/UPEC49904.2020.9209858
+    \endverb
+    \field{pages}{1\bibrangedash 6}
+    \field{title}{Short-term Forecasting of Photovoltaic Generation based on
+  Conditioned Learning of Geopotential Fields}
+    \field{year}{2020}
+  \endentry
+
+  \entry{dhariwal2021diffusion}{article}{}
+    \name{author}{2}{}{%
+      {{hash=DP}{%
+         family={Dhariwal},
+         familyi={D\bibinitperiod},
+         given={Prafulla},
+         giveni={P\bibinitperiod},
+      }}%
+      {{hash=NA}{%
+         family={Nichol},
+         familyi={N\bibinitperiod},
+         given={Alexander},
+         giveni={A\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{DPNA1}
+    \strng{fullhash}{DPNA1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{labelyear}{2021}
+    \field{labeldatesource}{}
+    \field{sortinit}{D}
+    \field{sortinithash}{D}
+    \field{pages}{8780\bibrangedash 8794}
+    \field{title}{Diffusion models beat gans on image synthesis}
+    \field{volume}{34}
+    \field{journaltitle}{Advances in neural information processing systems}
+    \field{year}{2021}
+  \endentry
+
+  \entry{han2022card}{article}{}
+    \name{author}{3}{}{%
+      {{hash=HX}{%
+         family={Han},
+         familyi={H\bibinitperiod},
+         given={Xizewen},
+         giveni={X\bibinitperiod},
+      }}%
+      {{hash=ZH}{%
+         family={Zheng},
+         familyi={Z\bibinitperiod},
+         given={Huangjie},
+         giveni={H\bibinitperiod},
+      }}%
+      {{hash=ZM}{%
+         family={Zhou},
+         familyi={Z\bibinitperiod},
+         given={Mingyuan},
+         giveni={M\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{HX+1}
+    \strng{fullhash}{HXZHZM1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{labelyear}{2022}
+    \field{labeldatesource}{}
+    \field{sortinit}{H}
+    \field{sortinithash}{H}
+    \field{pages}{18100\bibrangedash 18115}
+    \field{title}{Card: Classification and regression diffusion models}
+    \field{volume}{35}
+    \field{journaltitle}{Advances in Neural Information Processing Systems}
+    \field{year}{2022}
+  \endentry
+
+  \entry{hatanaka2023diffusion}{article}{}
+    \name{author}{5}{}{%
+      {{hash=HY}{%
+         family={Hatanaka},
+         familyi={H\bibinitperiod},
+         given={Yusuke},
+         giveni={Y\bibinitperiod},
+      }}%
+      {{hash=GY}{%
+         family={Glaser},
+         familyi={G\bibinitperiod},
+         given={Yannik},
+         giveni={Y\bibinitperiod},
+      }}%
+      {{hash=GG}{%
+         family={Galgon},
+         familyi={G\bibinitperiod},
+         given={Geoff},
+         giveni={G\bibinitperiod},
+      }}%
+      {{hash=TG}{%
+         family={Torri},
+         familyi={T\bibinitperiod},
+         given={Giuseppe},
+         giveni={G\bibinitperiod},
+      }}%
+      {{hash=SP}{%
+         family={Sadowski},
+         familyi={S\bibinitperiod},
+         given={Peter},
+         giveni={P\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{HY+1}
+    \strng{fullhash}{HYGYGGTGSP1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{labelyear}{2023}
+    \field{labeldatesource}{}
+    \field{sortinit}{H}
+    \field{sortinithash}{H}
+    \field{title}{Diffusion models for high-resolution solar forecasts}
+    \field{journaltitle}{arXiv preprint arXiv:2302.00170}
+    \field{year}{2023}
+  \endentry
+
+  \entry{ho2020denoising}{article}{}
+    \name{author}{3}{}{%
+      {{hash=HJ}{%
+         family={Ho},
+         familyi={H\bibinitperiod},
+         given={Jonathan},
+         giveni={J\bibinitperiod},
+      }}%
+      {{hash=JA}{%
+         family={Jain},
+         familyi={J\bibinitperiod},
+         given={Ajay},
+         giveni={A\bibinitperiod},
+      }}%
+      {{hash=AP}{%
+         family={Abbeel},
+         familyi={A\bibinitperiod},
+         given={Pieter},
+         giveni={P\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{HJ+1}
+    \strng{fullhash}{HJJAAP1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{labelyear}{2020}
+    \field{labeldatesource}{}
+    \field{sortinit}{H}
+    \field{sortinithash}{H}
+    \field{pages}{6840\bibrangedash 6851}
+    \field{title}{Denoising diffusion probabilistic models}
+    \field{volume}{33}
+    \field{journaltitle}{Advances in neural information processing systems}
+    \field{year}{2020}
+  \endentry
+
+  \entry{hossain2020short}{article}{}
+    \name{author}{2}{}{%
+      {{hash=HMS}{%
+         family={Hossain},
+         familyi={H\bibinitperiod},
+         given={Mohammad\bibnamedelima Safayet},
+         giveni={M\bibinitperiod\bibinitdelim S\bibinitperiod},
+      }}%
+      {{hash=MH}{%
+         family={Mahmood},
+         familyi={M\bibinitperiod},
+         given={Hisham},
+         giveni={H\bibinitperiod},
+      }}%
+    }
+    \list{publisher}{1}{%
+      {IEEE}%
+    }
+    \strng{namehash}{HMSMH1}
+    \strng{fullhash}{HMSMH1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{labelyear}{2020}
+    \field{labeldatesource}{}
+    \field{sortinit}{H}
+    \field{sortinithash}{H}
+    \field{pages}{172524\bibrangedash 172533}
+    \field{title}{Short-term photovoltaic power forecasting using an LSTM
+  neural network and synthetic weather forecast}
+    \field{volume}{8}
+    \field{journaltitle}{Ieee Access}
+    \field{year}{2020}
+  \endentry
+
+  \entry{kendall2017uncertainties}{article}{}
+    \name{author}{2}{}{%
+      {{hash=KA}{%
+         family={Kendall},
+         familyi={K\bibinitperiod},
+         given={Alex},
+         giveni={A\bibinitperiod},
+      }}%
+      {{hash=GY}{%
+         family={Gal},
+         familyi={G\bibinitperiod},
+         given={Yarin},
+         giveni={Y\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{KAGY1}
+    \strng{fullhash}{KAGY1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{labelyear}{2017}
+    \field{labeldatesource}{}
+    \field{sortinit}{K}
+    \field{sortinithash}{K}
+    \field{title}{What uncertainties do we need in bayesian deep learning for
+  computer vision?}
+    \field{volume}{30}
+    \field{journaltitle}{Advances in neural information processing systems}
+    \field{year}{2017}
+  \endentry
+
+  \entry{lim2022solar}{article}{}
+    \name{author}{5}{}{%
+      {{hash=LSC}{%
+         family={Lim},
+         familyi={L\bibinitperiod},
+         given={Su-Chang},
+         giveni={S\bibinithyphendelim C\bibinitperiod},
+      }}%
+      {{hash=HJH}{%
+         family={Huh},
+         familyi={H\bibinitperiod},
+         given={Jun-Ho},
+         giveni={J\bibinithyphendelim H\bibinitperiod},
+      }}%
+      {{hash=HSH}{%
+         family={Hong},
+         familyi={H\bibinitperiod},
+         given={Seok-Hoon},
+         giveni={S\bibinithyphendelim H\bibinitperiod},
+      }}%
+      {{hash=PCY}{%
+         family={Park},
+         familyi={P\bibinitperiod},
+         given={Chul-Young},
+         giveni={C\bibinithyphendelim Y\bibinitperiod},
+      }}%
+      {{hash=KJC}{%
+         family={Kim},
+         familyi={K\bibinitperiod},
+         given={Jong-Chan},
+         giveni={J\bibinithyphendelim C\bibinitperiod},
+      }}%
+    }
+    \list{publisher}{1}{%
+      {MDPI}%
+    }
+    \strng{namehash}{LSC+1}
+    \strng{fullhash}{LSCHJHHSHPCYKJC1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{labelyear}{2022}
+    \field{labeldatesource}{}
+    \field{sortinit}{L}
+    \field{sortinithash}{L}
+    \field{number}{21}
+    \field{pages}{8233}
+    \field{title}{Solar power forecasting using CNN-LSTM hybrid model}
+    \field{volume}{15}
+    \field{journaltitle}{Energies}
+    \field{year}{2022}
+  \endentry
+
+  \entry{ramesh2022hierarchical}{article}{}
+    \name{author}{5}{}{%
+      {{hash=RA}{%
+         family={Ramesh},
+         familyi={R\bibinitperiod},
+         given={Aditya},
+         giveni={A\bibinitperiod},
+      }}%
+      {{hash=DP}{%
+         family={Dhariwal},
+         familyi={D\bibinitperiod},
+         given={Prafulla},
+         giveni={P\bibinitperiod},
+      }}%
+      {{hash=NA}{%
+         family={Nichol},
+         familyi={N\bibinitperiod},
+         given={Alex},
+         giveni={A\bibinitperiod},
+      }}%
+      {{hash=CC}{%
+         family={Chu},
+         familyi={C\bibinitperiod},
+         given={Casey},
+         giveni={C\bibinitperiod},
+      }}%
+      {{hash=CM}{%
+         family={Chen},
+         familyi={C\bibinitperiod},
+         given={Mark},
+         giveni={M\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{RA+1}
+    \strng{fullhash}{RADPNACCCM1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{labelyear}{2022}
+    \field{labeldatesource}{}
+    \field{sortinit}{R}
+    \field{sortinithash}{R}
+    \field{number}{2}
+    \field{pages}{3}
+    \field{title}{Hierarchical text-conditional image generation with clip
+  latents}
+    \field{volume}{1}
+    \field{journaltitle}{arXiv preprint arXiv:2204.06125}
+    \field{year}{2022}
+  \endentry
+
+  \entry{sohl2015deep}{inproceedings}{}
+    \name{author}{4}{}{%
+      {{hash=SDJ}{%
+         family={Sohl-Dickstein},
+         familyi={S\bibinithyphendelim D\bibinitperiod},
+         given={Jascha},
+         giveni={J\bibinitperiod},
+      }}%
+      {{hash=WE}{%
+         family={Weiss},
+         familyi={W\bibinitperiod},
+         given={Eric},
+         giveni={E\bibinitperiod},
+      }}%
+      {{hash=MN}{%
+         family={Maheswaranathan},
+         familyi={M\bibinitperiod},
+         given={Niru},
+         giveni={N\bibinitperiod},
+      }}%
+      {{hash=GS}{%
+         family={Ganguli},
+         familyi={G\bibinitperiod},
+         given={Surya},
+         giveni={S\bibinitperiod},
+      }}%
+    }
+    \list{organization}{1}{%
+      {PMLR}%
+    }
+    \strng{namehash}{SDJ+1}
+    \strng{fullhash}{SDJWEMNGS1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{labelyear}{2015}
+    \field{labeldatesource}{}
+    \field{sortinit}{S}
+    \field{sortinithash}{S}
+    \field{booktitle}{International conference on machine learning}
+    \field{pages}{2256\bibrangedash 2265}
+    \field{title}{Deep unsupervised learning using nonequilibrium
+  thermodynamics}
+    \field{year}{2015}
+  \endentry
+
+  \entry{tawn2022review}{article}{}
+    \name{author}{2}{}{%
+      {{hash=TR}{%
+         family={Tawn},
+         familyi={T\bibinitperiod},
+         given={Rosemary},
+         giveni={R\bibinitperiod},
+      }}%
+      {{hash=BJ}{%
+         family={Browell},
+         familyi={B\bibinitperiod},
+         given={Jethro},
+         giveni={J\bibinitperiod},
+      }}%
+    }
+    \list{publisher}{1}{%
+      {Elsevier}%
+    }
+    \strng{namehash}{TRBJ1}
+    \strng{fullhash}{TRBJ1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{labelyear}{2022}
+    \field{labeldatesource}{}
+    \field{sortinit}{T}
+    \field{sortinithash}{T}
+    \field{pages}{111758}
+    \field{title}{A review of very short-term wind and solar power forecasting}
+    \field{volume}{153}
+    \field{journaltitle}{Renewable and Sustainable Energy Reviews}
+    \field{year}{2022}
+  \endentry
+\enddatalist
+\endinput
